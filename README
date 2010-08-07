@@ -48,3 +48,17 @@ in IndexPruner class.
 
 Current implementation does not include "second-order interpretation" and "concept generality filter".
 They will be added in upcoming commits.
+
+
+USAGE
+
+python scanData.py <hgw.xml file from Wikiprep dump>
+python addAnchors.py <anchor_text file from Wikiprep dump> <a writeable folder>
+
+java -cp esa-lucene.jar edu.wiki.index.ESAWikipediaIndexer <Lucene index folder>
+java -cp esa-lucene.jar edu.wiki.modify.IndexModifier <Lucene index folder>
+java -cp esa-lucene.jar edu.wiki.modify.IndexPruner
+
+
+Then perform a search to test:
+java -cp esa-lucene.jar edu.wiki.search.ESASearcher
