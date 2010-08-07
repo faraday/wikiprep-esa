@@ -52,15 +52,14 @@ public class ESAWikipediaIndexer {
 			// read DB config
 			InputStream is = ESAWikipediaIndexer.class.getResourceAsStream("/config/db.conf");
 			BufferedReader br = new BufferedReader(new InputStreamReader(is));
-			String dbPass = br.readLine();
+			String serverName = br.readLine();
+			String mydatabase = br.readLine();
+			String username = br.readLine(); 
+			String password = br.readLine();
 			br.close();
 
 			// Create a connection to the database 
-			String serverName = "localhost"; 
-			String mydatabase = "wiki"; 
 			String url = "jdbc:mysql://" + serverName + "/" + mydatabase; // a JDBC url 
-			String username = "root"; 
-			String password = dbPass; // .mmK{2W
 			connection = DriverManager.getConnection(url, username, password);
 			
 			pstmt = connection.prepareStatement(strArticleQuery);
