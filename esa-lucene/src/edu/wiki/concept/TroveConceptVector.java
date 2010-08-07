@@ -18,7 +18,7 @@ public class TroveConceptVector implements IConceptVector, Serializable {
 	
 	public TroveConceptVector(int size ) {
 		this.size = size;
-		valueMap = new TIntDoubleHashMap();
+		valueMap = new TIntDoubleHashMap(size);		
 	}
 	
 	@Override

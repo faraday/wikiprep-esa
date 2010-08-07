@@ -15,7 +15,7 @@ import edu.wiki.api.concept.IConceptIterator;
 import edu.wiki.api.concept.IConceptVector;
 import edu.wiki.search.ESASearcher;
 
-public class TestESAVectors {
+public class TestGeneralESAVectors {
 	
 	static Connection connection;
 	static Statement stmtQuery;
@@ -59,7 +59,7 @@ public class TestESAVectors {
 		String text = in.readLine();
 		
 		IConceptVector cvBase = searcher.getConceptVector(text);
-		IConceptVector cv = searcher.getNormalVector(cvBase,10);
+		IConceptVector cv = searcher.getLinkVector(cvBase,10);
 		
 		if(cv == null){
 			System.exit(1);

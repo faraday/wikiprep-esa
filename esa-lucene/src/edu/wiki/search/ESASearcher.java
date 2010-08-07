@@ -9,17 +9,27 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.TermAttribute;
 
 import java.sql.PreparedStatement;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 
+import edu.wiki.api.concept.IConceptIterator;
 import edu.wiki.api.concept.IConceptVector;
 import edu.wiki.concept.TroveConceptVector;
 import edu.wiki.index.WikipediaAnalyzer;
 import edu.wiki.util.HeapSort;
+import gnu.trove.TIntFloatHashMap;
+import gnu.trove.TIntIntHashMap;
 
 /**
  * Performs search on the index located in database.
@@ -30,17 +40,25 @@ public class ESASearcher {
 	Connection connection;
 	
 	PreparedStatement pstmtQuery;
+	PreparedStatement pstmtLinks;
+	Statement stmtInlink;
 	
 	WikipediaAnalyzer analyzer;
 	
 	String strTermQuery = "SELECT t.doc,t.tfidf FROM tfidf t WHERE t.term = ?";
 	
 	String strMaxConcept = "SELECT MAX(id) FROM article";
+	
+	String strInlinks = "SELECT i.target_id, i.inlink FROM inlinks i WHERE i.target_id IN ";
+	
+	String strLinks = "SELECT target_id FROM pagelinks WHERE source_id = ?";
 
 	int maxConceptId;
 	
 	int[] ids;
 	double[] values;
+	
+	TIntIntHashMap inlinkMap;
 	
 	public void initDB() throws ClassNotFoundException, SQLException, IOException {
 		// Load the JDBC driver 
@@ -63,6 +81,12 @@ public class ESASearcher {
 		pstmtQuery = connection.prepareStatement(strTermQuery);
 		pstmtQuery.setFetchSize(500);
 		
+		pstmtLinks = connection.prepareStatement(strLinks);
+		pstmtLinks.setFetchSize(500);
+		
+		stmtInlink = connection.createStatement();
+		stmtInlink.setFetchSize(50);
+		
 		ResultSet res = connection.createStatement().executeQuery(strMaxConcept);
 		res.next();
 		maxConceptId = res.getInt(1) + 1;
@@ -75,6 +99,7 @@ public class ESASearcher {
 		ids = new int[maxConceptId];
 		values = new double[maxConceptId];
 		
+		inlinkMap = new TIntIntHashMap(300);
 	}
 	
 	@Override
@@ -83,7 +108,7 @@ public class ESASearcher {
 		super.finalize();
 	}
 	
-	public IConceptVector extractVector(String query) throws IOException, SQLException{
+	public IConceptVector getConceptVector(String query) throws IOException, SQLException{
 		String strTerm;
 		int numTerms = 0;
 		ResultSet rs;
@@ -135,6 +160,182 @@ public class ESASearcher {
 		}
 		
 		return newCv;
+	}
+	
+	
+	/**
+	 * Returns trimmed form of concept vector
+	 * @param cv
+	 * @return
+	 */
+	public IConceptVector getNormalVector(IConceptVector cv, int LIMIT){
+		IConceptVector cv_normal = new TroveConceptVector( LIMIT);
+		
+		IConceptIterator it = cv.orderedIterator();
+		
+		int count = 0;
+		while(it.next()){
+			if(count >= LIMIT) break;
+			cv_normal.set(it.getId(), it.getValue());
+			count++;
+		}
+		
+		return cv_normal;
+	}
+	
+	private TIntIntHashMap setInlinkCounts(Collection<Integer> ids) throws SQLException{
+		String inPart = "(";
+		
+		for(int id: ids){
+			inPart += id + ",";
+		}
+		
+		inPart = inPart.substring(0,inPart.length()-1) + ")";
+
+		// collect inlink counts
+		ResultSet r = stmtInlink.executeQuery(strInlinks + inPart);
+		while(r.next()){
+			inlinkMap.put(r.getInt(1), r.getInt(2)); 
+		}
+		
+		return inlinkMap;
+	}
+	
+	private Collection<Integer> getLinks(int id) throws SQLException{
+		ArrayList<Integer> links = new ArrayList<Integer>(100); 
+		
+		pstmtLinks.setInt(1, id);
+		
+		ResultSet r = pstmtLinks.executeQuery();
+		while(r.next()){
+			links.add(r.getInt(1)); 
+		}
+		
+		return links;
+	}
+	
+	
+	public IConceptVector getLinkVector(IConceptVector cv, int flimit) throws SQLException {
+		return getLinkVector(cv, true, 0.5f, 10, flimit);
+	}
+	
+	public IConceptVector getLinkVector(IConceptVector cv, boolean moreGeneral, double ALPHA, int LIMIT, int FLIMIT) throws SQLException {
+		IConceptIterator it = cv.orderedIterator();
+		
+		int count = 0;
+		ArrayList<Integer> pages = new ArrayList<Integer>();
+						
+		TIntFloatHashMap valueMap2 = new TIntFloatHashMap(1000);
+		TIntFloatHashMap valueMap3 = new TIntFloatHashMap();
+		
+		ArrayList<Integer> npages = new ArrayList<Integer>();
+		
+		HashMap<Integer, Float> secondMap = new HashMap<Integer, Float>(1000);
+				
+		// collect article objects
+		while(it.next()){
+			pages.add(it.getId());
+			valueMap2.put(it.getId(),(float) it.getValue());
+			count++;
+		}
+		
+		// prepare inlink counts
+		inlinkMap.clear();
+		setInlinkCounts(pages);
+				
+		count = 0;
+		for(int pid : pages){
+			if(count >= LIMIT) break;
+			
+			Collection<Integer> raw_links = getLinks(pid);
+			ArrayList<Integer> links = new ArrayList<Integer>(raw_links.size());
+			
+			final double inlink_factor_p = Math.log(inlinkMap.get(pid));
+										
+			float origValue = valueMap2.get(pid);
+			
+			setInlinkCounts(raw_links);
+						
+			for(int lid : raw_links){
+				final double inlink_factor_link = Math.log(inlinkMap.get(lid));
+				
+				// check concept generality..
+				if(inlink_factor_link - inlink_factor_p > 1){
+					links.add(lid);
+				}
+			}
+						
+			for(int lid : links){				
+				if(!valueMap2.containsKey(lid)){
+					valueMap2.put(lid, 0.0f);
+					npages.add(lid);
+				}
+			}
+						
+			
+			
+			float linkedValue = 0.0f;
+									
+			for(int lid : links){
+				if(valueMap3.containsKey(lid)){
+					linkedValue = valueMap3.get(lid); 
+					linkedValue += origValue;
+					valueMap3.put(lid, linkedValue);
+				}
+				else {
+					valueMap3.put(lid, origValue);
+				}
+			}
+			
+			count++;
+		}
+		
+		
+		for(int pid : pages){			
+			if(valueMap3.containsKey(pid)){
+				secondMap.put(pid, (float) (valueMap2.get(pid) + ALPHA * valueMap3.get(pid)));
+			}
+			else {
+				secondMap.put(pid, (float) (valueMap2.get(pid) ));
+			}
+		}
+		
+		for(int pid : npages){			
+			secondMap.put(pid, (float) (ALPHA * valueMap3.get(pid)));
+
+		}
+		
+		
+		//System.out.println("read links..");
+		
+		
+		ArrayList<Integer> keys = new ArrayList(secondMap.keySet());
+		
+		//Sort keys by values.
+		final Map langForComp = secondMap;
+		Collections.sort(keys, 
+			new Comparator(){
+				public int compare(Object left, Object right){
+					Integer leftKey = (Integer)left;
+					Integer rightKey = (Integer)right;
+					
+					Float leftValue = (Float)langForComp.get(leftKey);
+					Float rightValue = (Float)langForComp.get(rightKey);
+					return leftValue.compareTo(rightValue);
+				}
+			});
+		Collections.reverse(keys);
+		
+		
+
+		IConceptVector cv_link = new TroveConceptVector(maxConceptId);
+		
+		for(int p : keys){
+			cv_link.set(p, secondMap.get(p));
+		}
+		
+		
+		return cv_link;
 	}
 	
 

@@ -257,6 +257,12 @@ cursor.execute("RENAME TABLE tmparticle TO article")
 
 #cursor.execute("DROP TABLE inlinks")
 
+# remove links to articles that are filtered out
+cursor.execute("CREATE TABLE tmppagelinks LIKE pagelinks")
+cursor.execute("INSERT tmppagelinks SELECT * FROM pagelinks WHERE EXISTS (SELECT id FROM article WHERE id = target_id) AND EXISTS (SELECT id FROM article WHERE id = source_id)")
+cursor.execute("DROP TABLE pagelinks")
+cursor.execute("RENAME TABLE tmppagelinks TO pagelinks")
+
 cursor.execute("SELECT COUNT(id) FROM article")
 r = cursor.fetchone()
 print "Articles: ", r[0]
