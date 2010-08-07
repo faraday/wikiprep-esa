@@ -34,6 +34,8 @@ keep in mind that at this point, the implementation won't be the same with Gabri
 since cosine normalization is term-based in Gabrilovich et al. but document length based in Lucene.
 Additionally, pruning is not yet applied in Lucene index as in Gabrilovich et al.
 
+However, TF.IDF weighing scheme is the same (log-based) and is located in ESASimilarity class.
+
 * IndexModifier: reads term frequency vectors from Lucene index and writes cosine-normalized TF.IDF values into
 "tfidf" table in the database. This is done to apply the same normalization method used in Gabrilovich et al. (2009).
 
