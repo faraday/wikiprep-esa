@@ -8,7 +8,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
@@ -19,8 +18,6 @@ import org.apache.lucene.index.TermEnum;
 import org.apache.lucene.index.TermFreqVector;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-
-import gnu.trove.TIntFloatHashMap;
 
 /**
  * Reads TF and IDF from the index and 
@@ -43,9 +40,7 @@ public class IndexModifier {
 	static String strAllInlinks = "SELECT target_id,inlink FROM inlinks";
 
 	private static IndexReader reader = null;
-	
-	static TIntFloatHashMap inlinkMap;
-	
+		
 	public static void initDB() throws ClassNotFoundException, SQLException, IOException {
 		// Load the JDBC driver 
 		String driverName = "com.mysql.jdbc.Driver"; // MySQL Connector 
@@ -112,15 +107,7 @@ public class IndexModifier {
 	    
 	    int wikiID;
 	    	    
-	    int numDocs = reader.numDocs();
-	    
-	    // initialize inlink map
-	    inlinkMap = new TIntFloatHashMap(numDocs);
-	    ResultSet resin = stmtLink.executeQuery(strAllInlinks);
-	    while(resin.next()){
-	    	inlinkMap.put(resin.getInt(1),resin.getFloat(2));
-	    }
-	    
+	    int numDocs = reader.numDocs();   
 	    
 	    TermEnum tnum = reader.terms();
 	    HashMap<String, Float> idfMap = new HashMap<String, Float>(500000);
@@ -195,10 +182,7 @@ public class IndexModifier {
 	    				continue;
 	    				    			
 	    			tfidf = (float) (tfidfMap.get(term) / sum);
-	    			
-	    			// FIXME boost with inlinks
-	    			tfidf *= 1 + inlinkMap.get(wikiID);
-	    				    			
+	    				    				    			
 	    			// System.out.println(i + ": " + term + " " + fq[k] + " " + tfidf);
 	    			
 	    			// ++++ record to DB +++++	    			
