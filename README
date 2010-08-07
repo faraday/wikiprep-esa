@@ -1,0 +1,47 @@
+Wikiprep-ESA
+
+This is an effort to implement Explicit Semantic Analysis (ESA) as described in this paper:
+
+"Wikipedia-based semantic interpretation for natural language processing"
+2009, Gabrilovich, E. and Markovitch, S.
+
+
+This implementation consists of:
+* scanData.py : that reads Wikiprep output into a MySQL database.
+It creates "article","text" and "pagelinks" tables.
+
+* addAnchors.py : that adds anchor text to target articles.
+* addRedirects.py : that adds redirect text to target articles.
+
+The scripts above are able to work on both Wikiprep legacy format and modern format (as in Zemanta fork).
+
+Evgeniy Gabrilovich provides a preprocessed dump for 5 November 2005 snapshot of Wikipedia English.
+
+It is available at: http://www.cs.technion.ac.il/~gabr/resources/code/wikiprep/wikipedia-051105-preprocessed.tar.bz2
+
+In its current LEGACY settings, Python scripts of wikiprep-esa are ready to process this dump.
+If you need to process dumps in modern format, you need to set "LEGACY = False" in these scripts.
+
+
+After reading preprocessed dump into the database and adding anchors and redirects, you need to use
+"esa-lucene" to perform indexing.
+
+* ESAWikipediaIndexer: performs indexing with Lucene by feeding it with article content from database.
+
+* WikipediaNormalSearcher: at this step, you can use this class to perform a search in Lucene index.
+keep in mind that at this point, the implementation won't be the same with Gabrilovich et al. (2009),
+since cosine normalization is term-based in Gabrilovich et al. but document length based in Lucene.
+Additionally, pruning is not yet applied in Lucene index as in Gabrilovich et al.
+
+* IndexModifier: reads term frequency vectors from Lucene index and writes cosine-normalized TF.IDF values into
+"tfidf" table in the database. This is done to apply the same normalization method used in Gabrilovich et al. (2009).
+
+* IndexPruner: prunes concept vectors for each term with a sliding window.
+By default, window_size = 100 and threshold = 0.05 as in Gabrilovich et al. (2009). You can modify these values
+in IndexPruner class.
+
+* ESASearcher: performs search on the resulting index in the database. lists 20 results by default.
+
+
+Current implementation does not include "second-order interpretation" and "concept generality filter".
+They will be added in upcoming commits.
