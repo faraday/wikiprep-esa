@@ -255,7 +255,7 @@ cursor.execute("INSERT tmparticle SELECT a.* FROM article a, inlinks i WHERE a.i
 cursor.execute("DROP TABLE article")
 cursor.execute("RENAME TABLE tmparticle TO article")
 
-cursor.execute("DROP TABLE inlinks")
+#cursor.execute("DROP TABLE inlinks")
 
 cursor.execute("SELECT COUNT(id) FROM article")
 r = cursor.fetchone()

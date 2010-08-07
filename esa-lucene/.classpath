@@ -5,5 +5,6 @@
 	<classpathentry kind="lib" path="lib/lucene-analyzers-3.0.0.jar"/>
 	<classpathentry kind="lib" path="lib/lucene-core-3.0.0.jar"/>
 	<classpathentry kind="lib" path="lib/mysql-connector-java-5.1.12-bin.jar"/>
+	<classpathentry kind="lib" path="lib/trove-2.1.0.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -34,7 +34,7 @@ public class IndexPruner {
 	
 	static int WINDOW_SIZE = 100;
 	
-	static int PARALEL_TERM = 10;
+	static int PARALEL_TERM = 3;
 	
 	public static void initDB() throws ClassNotFoundException, SQLException, IOException {
 		// Load the JDBC driver 

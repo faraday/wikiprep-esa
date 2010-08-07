@@ -9,13 +9,17 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.TermAttribute;
-import org.apache.lucene.queryParser.ParseException;
 
+import java.sql.PreparedStatement;
+import java.util.Arrays;
+
+import edu.wiki.api.concept.IConceptVector;
+import edu.wiki.concept.TroveConceptVector;
 import edu.wiki.index.WikipediaAnalyzer;
+import edu.wiki.util.HeapSort;
 
 /**
  * Performs search on the index located in database.
@@ -23,13 +27,22 @@ import edu.wiki.index.WikipediaAnalyzer;
  * @author Cagatay Calli <ccalli@gmail.com>
  */
 public class ESASearcher {
-	static Connection connection;
-	static Statement stmtQuery;
+	Connection connection;
 	
-	static String strQuery = "SELECT k.* FROM (SELECT t.doc, SUM(t.tfidf)/%d AS tfidf, a.title FROM tfidf t, article a WHERE t.term IN %s AND t.doc = a.id GROUP BY t.doc) AS k ORDER BY k.tfidf DESC LIMIT 0,30";
+	PreparedStatement pstmtQuery;
+	
+	WikipediaAnalyzer analyzer;
+	
+	String strTermQuery = "SELECT t.doc,t.tfidf FROM tfidf t WHERE t.term = ?";
+	
+	String strMaxConcept = "SELECT MAX(id) FROM article";
 
+	int maxConceptId;
 	
-	public static void initDB() throws ClassNotFoundException, SQLException, IOException {
+	int[] ids;
+	double[] values;
+	
+	public void initDB() throws ClassNotFoundException, SQLException, IOException {
 		// Load the JDBC driver 
 		String driverName = "com.mysql.jdbc.Driver"; // MySQL Connector 
 		Class.forName(driverName); 
@@ -47,78 +60,82 @@ public class ESASearcher {
 		String url = "jdbc:mysql://" + serverName + "/" + mydatabase; // a JDBC url 
 		connection = DriverManager.getConnection(url, username, password);
 		
-		// stmtQuery = connection.prepareStatement(strQuery);
-		stmtQuery = connection.createStatement();
-		stmtQuery.setFetchSize(200);
+		pstmtQuery = connection.prepareStatement(strTermQuery);
+		pstmtQuery.setFetchSize(500);
+		
+		ResultSet res = connection.createStatement().executeQuery(strMaxConcept);
+		res.next();
+		maxConceptId = res.getInt(1) + 1;
   }
 	
-	public static void main(String[] args) throws IOException, ParseException, ClassNotFoundException, SQLException {
+	public ESASearcher() throws ClassNotFoundException, SQLException, IOException{
 		initDB();
+		analyzer = new WikipediaAnalyzer();
 		
-		BufferedReader br = new BufferedReader(
-	            new InputStreamReader(System.in));
-	    String q = br.readLine();
-        
-        WikipediaAnalyzer analyzer = new WikipediaAnalyzer(); // or any other analyzer 
-        TokenStream ts = analyzer.tokenStream("contents",new StringReader(q));
-         
-        String strTerm = null;
-        
-        int doc;
-        float score;
-        String title;
-                
-        int numTerms = 0;
-        
-        String qterm = "(";
-         
-        try {
-            ts.reset();
-            while (ts.incrementToken()) { 
-            	
-              TermAttribute t = ts.getAttribute(TermAttribute.class);
-              strTerm = t.term();
-              
-              qterm += "\"" + strTerm.replace("\\","\\\\").replace("\"","\\\"") + "\",";
-              
-              numTerms++;	
-
-            } 
-            ts.end();
-            ts.close();
-            
-            qterm = qterm.substring(0, qterm.length()-1) + ")";
-            System.out.println(qterm);
-            
-            System.out.println(strQuery.replace("%s", qterm).replace("%d",String.valueOf(numTerms)));
-            stmtQuery.execute(strQuery.replace("%s", qterm).replace("%d",String.valueOf(numTerms)));
-            
-            int count = 0;
-            
-          ResultSet rs = stmtQuery.getResultSet();
-          
-          while(rs.next()){
-        	  doc = rs.getInt(1);
-        	  score = rs.getFloat(2);
-        	  title = new String(rs.getBytes(3),"UTF-8");
-        	  
-        	  System.out.println(title + " " + score);
-        	  
-        	  
-        	  count++;
-        	  if(count > 20)
-        		  break;
-
-          }
-          
-            
-        }
-        catch (IOException e1) {
-            e1.printStackTrace();
-        }
-
+		ids = new int[maxConceptId];
+		values = new double[maxConceptId];
 		
-		
-	    connection.close();
 	}
+	
+	@Override
+	protected void finalize() throws Throwable {
+        connection.close();
+		super.finalize();
+	}
+	
+	public IConceptVector extractVector(String query) throws IOException, SQLException{
+		String strTerm;
+		int numTerms = 0;
+		ResultSet rs;
+		int doc;
+		float score;
+        TokenStream ts = analyzer.tokenStream("contents",new StringReader(query));
+
+		Arrays.fill( values, 0 );
+
+		for( int i=0; i<ids.length; i++ ) {
+			ids[i] = i;
+		}
+        
+        ts.reset();
+        
+        while (ts.incrementToken()) { 
+        	
+            TermAttribute t = ts.getAttribute(TermAttribute.class);
+            strTerm = t.term();
+                        
+            pstmtQuery.setString(1, strTerm);
+            pstmtQuery.execute();
+            
+            rs = pstmtQuery.getResultSet();
+            
+            while(rs.next()){
+          	  doc = rs.getInt(1);
+          	  score = rs.getFloat(2);
+          	  
+          	  values[doc] += score;
+            }
+            
+            numTerms++;	
+
+        } 
+        
+        ts.end();
+        ts.close();      
+        
+        if(numTerms == 0){
+        	return null;
+        }
+        
+        HeapSort.heapSort( values, ids );
+        
+        IConceptVector newCv = new TroveConceptVector(ids.length);
+		for( int i=ids.length-1; i>=0 && values[i] > 0; i-- ) {
+			newCv.set( ids[i], values[i] / numTerms );
+		}
+		
+		return newCv;
+	}
+	
+
 }
