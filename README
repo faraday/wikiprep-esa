@@ -43,11 +43,11 @@ However, TF.IDF weighing scheme is the same (log-based) and is located in ESASim
 By default, window_size = 100 and threshold = 0.05 as in Gabrilovich et al. (2009). You can modify these values
 in IndexPruner class.
 
-* ESASearcher: performs search on the resulting index in the database. lists 20 results by default.
+* ESASearcher: performs search and computes vectors by using the resulting index in the database.
 
+* TestESAVectors: produces and displays regular feature vector.
 
-Current implementation does not include "second-order interpretation" and "concept generality filter".
-They will be added in upcoming commits.
+* TestGeneralESAVectors: produces and displays "Second Order Interpretation" vector filtered with "Concept Generality Filter" as in Gabrilovich et al. (2009).
 
 
 USAGE
@@ -61,4 +61,4 @@ java -cp esa-lucene.jar edu.wiki.modify.IndexPruner
 
 
 Then perform a search to test:
-java -cp esa-lucene.jar edu.wiki.search.ESASearcher
+java -cp esa-lucene.jar edu.wiki.demo.TestGeneralESAVectors
