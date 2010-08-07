@@ -59,7 +59,8 @@ public class TestGeneralESAVectors {
 		String text = in.readLine();
 		
 		IConceptVector cvBase = searcher.getConceptVector(text);
-		IConceptVector cv = searcher.getLinkVector(cvBase,10);
+		IConceptVector cvNormal = searcher.getNormalVector(cvBase,10);
+		IConceptVector cv = searcher.getLinkVector(cvNormal,10);
 		
 		if(cv == null){
 			System.exit(1);

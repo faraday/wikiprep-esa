@@ -291,14 +291,14 @@ public class ESASearcher {
 		}
 		
 		
-		for(int pid : pages){			
-			if(valueMap3.containsKey(pid)){
-				secondMap.put(pid, (float) (valueMap2.get(pid) + ALPHA * valueMap3.get(pid)));
-			}
-			else {
-				secondMap.put(pid, (float) (valueMap2.get(pid) ));
-			}
-		}
+//		for(int pid : pages){			
+//			if(valueMap3.containsKey(pid)){
+//				secondMap.put(pid, (float) (valueMap2.get(pid) + ALPHA * valueMap3.get(pid)));
+//			}
+//			else {
+//				secondMap.put(pid, (float) (valueMap2.get(pid) ));
+//			}
+//		}
 		
 		for(int pid : npages){			
 			secondMap.put(pid, (float) (ALPHA * valueMap3.get(pid)));
