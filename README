@@ -2,9 +2,10 @@ Wikiprep-ESA
 
 This is an effort to implement Explicit Semantic Analysis (ESA) as described in this paper:
 
-"[Wikipedia-based semantic interpretation for natural language processing](http://www.jair.org/media/2669/live-2669-4346-jair.pdf)"
+"Wikipedia-based semantic interpretation for natural language processing"
 2009, Gabrilovich, E. and Markovitch, S.
 
+You can find this paper at: http://www.jair.org/media/2669/live-2669-4346-jair.pdf
 
 This implementation consists of:
 * scanData.py : that reads Wikiprep output into a MySQL database.
