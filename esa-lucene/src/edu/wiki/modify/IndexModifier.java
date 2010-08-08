@@ -64,7 +64,7 @@ public class IndexModifier {
 		
 		stmtLink.execute("DROP TABLE IF EXISTS tfidf");
 		stmtLink.execute("CREATE TABLE tfidf (" +
-				"term VARCHAR(255), doc INT," +
+				"term VARBINARY(255), doc INT," +
 				"tfidf FLOAT " +
 				") DEFAULT CHARSET=binary");
 		
@@ -185,7 +185,7 @@ public class IndexModifier {
 	    				    				    			
 	    			// System.out.println(i + ": " + term + " " + fq[k] + " " + tfidf);
 	    			
-	    			// ++++ record to DB +++++	    			
+	    			// ++++ record to DB +++++
 	    			bw.write("'" +  term.replace("\\","\\\\").replace("'","\\'") + "'\t"+wikiID+"\t"+tfidf+"\n");
 					
 					qcount++;

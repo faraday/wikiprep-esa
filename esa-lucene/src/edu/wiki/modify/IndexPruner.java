@@ -65,7 +65,7 @@ public class IndexPruner {
 		
 		stmtLink.execute("DROP TABLE IF EXISTS tfidf");
 		stmtLink.execute("CREATE TABLE tfidf (" +
-				"term VARCHAR(255), doc INT," +
+				"term VARBINARY(255), doc INT," +
 				"tfidf FLOAT " +
 				") DEFAULT CHARSET=binary");
 		
@@ -104,7 +104,7 @@ public class IndexPruner {
 	    ResultSet res = stmtLink.executeQuery(strAllTerms);
 	    int ti = 0;
 	    while(res.next()){
-	    	terms[ti++] = res.getString(1);
+	    	terms[ti++] = new String(res.getBytes(1),"UTF-8");
 	    }
 	    
 	    // process term vectors
@@ -128,7 +128,7 @@ public class IndexPruner {
 	    	mark = 0;
 
 	    	while(resTerm.next()){
-	    		term = resTerm.getString(1);
+	    		term = new String(resTerm.getBytes(1),"UTF-8");
 	    		doc = resTerm.getInt(2);
 	    		tfidf = resTerm.getFloat(3);
 	    		

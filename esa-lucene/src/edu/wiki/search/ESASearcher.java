@@ -129,7 +129,7 @@ public class ESASearcher {
             TermAttribute t = ts.getAttribute(TermAttribute.class);
             strTerm = t.term();
                         
-            pstmtQuery.setString(1, strTerm);
+            pstmtQuery.setBytes(1, strTerm.getBytes("UTF-8"));
             pstmtQuery.execute();
             
             rs = pstmtQuery.getResultSet();
