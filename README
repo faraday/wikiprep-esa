@@ -56,7 +56,7 @@ Python scripts use MySQL-Python to access database.
 MySQL-Python: http://sourceforge.net/projects/mysql-python/
 
 "esa-lucene" Java project used for indexing, pruning etc. uses MySQL Connector/J to access database,
-Lucene 3.0 for indexing and Trove.
+Lucene 3.0 for indexing and Trove and these libraries are included in project files.
 
 MySQL Connector/J: http://www.mysql.com/downloads/connector/j/
 Lucene 3.0: http://lucene.apache.org
