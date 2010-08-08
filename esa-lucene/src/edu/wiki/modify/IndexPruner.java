@@ -33,6 +33,7 @@ public class IndexPruner {
 	static int numTerms;
 	
 	static int WINDOW_SIZE = 100;
+	static float WINDOW_THRES= 0.05f;
 	
 	static int PARALEL_TERM = 3;
 	
@@ -94,9 +95,10 @@ public class IndexPruner {
 	    int doc;
 	    float tfidf;
 	    
-	    int mark;
+	    int mark, windowMark;
 	    float first = 0, last = 0, highest = 0;
 	    int qcount = 0;
+	    float [] window = new float[WINDOW_SIZE];
 	    	    
 		FileWriter bw = new FileWriter("mod.txt");
 	    
@@ -110,6 +112,7 @@ public class IndexPruner {
 	    // process term vectors
 	    ResultSet resTerm;
 	    String tquery, prevTerm = null;
+	    boolean skip = false;
 	    
 	    
 	    for(int i=0;i<numTerms;){
@@ -126,6 +129,7 @@ public class IndexPruner {
 	    	resTerm = pstmtTerm.executeQuery(tquery);
 
 	    	mark = 0;
+	    	windowMark = 0;
 
 	    	while(resTerm.next()){
 	    		term = new String(resTerm.getBytes(1),"UTF-8");
@@ -133,34 +137,59 @@ public class IndexPruner {
 	    		tfidf = resTerm.getFloat(3);
 	    		
 	    		// next term
-	    		if(prevTerm != term){
+	    		if(prevTerm == null || !prevTerm.equals(term)){
 	    			mark = 0;
+	    			windowMark = 0;
 	    			prevTerm = term;
+	    			skip = false;
+	    			highest = first = last = 0;
+	    		}
+	    		else if(skip){
+	    			// truncating...
+	    			mark++;
+	    			continue;
 	    		}
 	    		
-	    		if(mark % WINDOW_SIZE == 0){
+	    		window[windowMark] = tfidf;
+	    		
+	    		if(mark == 0){
+	    			highest = tfidf;
 	    			first = tfidf;
-
-	    			if(mark == 0){
-	    				highest = tfidf;
+	    		}
+	    		    		
+	    		if(mark < WINDOW_SIZE){
+	    			bw.write("'" +  term.replace("\\","\\\\").replace("'","\\'") + "'\t"+doc+"\t"+tfidf+"\n");
+	    			qcount++;	    			
+	    		}
+	    		else if( highest*WINDOW_THRES < (first - last) ){
+	    			bw.write("'" +  term.replace("\\","\\\\").replace("'","\\'") + "'\t"+doc+"\t"+tfidf+"\n");
+	    			if(windowMark < WINDOW_SIZE-1){
+	    				first = window[windowMark+1];
+	    			}
+	    			else {
+	    				first = window[0];
 	    			}
 	    		}
-	    		else {
-	    			last = tfidf;
-	    		}
-
-	    		if(mark < WINDOW_SIZE || highest*0.05 < (first - last) ){
-	    			bw.write("'" +  term.replace("\\","\\\\").replace("'","\\'") + "'\t"+doc+"\t"+tfidf+"\n");
-	    			qcount++;
-	    		}
+	    		
 	    		else {
 	    			// truncate
 	    			// System.out.println("Truncated: " + term + " - first: " + first + " last: " + last + " mark: " + mark);
-	    			break;
+	    			skip = true;
+	    			mark++;
+	    			continue;
 	    		}
-
+	    		
+	    		// for DEBUGGING
+//	    		if(mark >= WINDOW_SIZE){
+//	    			System.out.println(term + " mark: " + mark + " " + highest + " " + highest*WINDOW_THRES + " vs. " + (first - last) + " f: " + first + " l: " + last);
+//	    		}
+	    		
+	    		last = tfidf;
 
 	    		mark++;
+	    		windowMark++;
+	    		
+	    		windowMark = windowMark % WINDOW_SIZE;
 	    	}
 
 	    	// write to DB
