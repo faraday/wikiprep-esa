@@ -73,5 +73,10 @@ java -cp esa-lucene.jar edu.wiki.modify.IndexModifier <Lucene index folder>
 java -cp esa-lucene.jar edu.wiki.modify.IndexPruner
 
 
-Then perform a search to test:
+Then perform a feature generation to test:
+
+To generate regular features:
+java -cp esa-lucene.jar edu.wiki.demo.TestESAVectors
+
+To generate features using only more general links: 
 java -cp esa-lucene.jar edu.wiki.demo.TestGeneralESAVectors
