@@ -60,6 +60,8 @@ public class ESASearcher {
 	
 	TIntIntHashMap inlinkMap;
 	
+	static float LINK_ALPHA = 0.5f;
+	
 	public void initDB() throws ClassNotFoundException, SQLException, IOException {
 		// Load the JDBC driver 
 		String driverName = "com.mysql.jdbc.Driver"; // MySQL Connector 
@@ -216,10 +218,10 @@ public class ESASearcher {
 	
 	
 	public IConceptVector getLinkVector(IConceptVector cv, int flimit) throws SQLException {
-		return getLinkVector(cv, true, 0.5f, 10, flimit);
+		return getLinkVector(cv, true, LINK_ALPHA, flimit);
 	}
 	
-	public IConceptVector getLinkVector(IConceptVector cv, boolean moreGeneral, double ALPHA, int LIMIT, int FLIMIT) throws SQLException {
+	public IConceptVector getLinkVector(IConceptVector cv, boolean moreGeneral, double ALPHA, int FLIMIT) throws SQLException {
 		IConceptIterator it = cv.orderedIterator();
 		
 		int count = 0;
@@ -243,10 +245,7 @@ public class ESASearcher {
 		inlinkMap.clear();
 		setInlinkCounts(pages);
 				
-		count = 0;
-		for(int pid : pages){
-			if(count >= LIMIT) break;
-			
+		for(int pid : pages){			
 			Collection<Integer> raw_links = getLinks(pid);
 			ArrayList<Integer> links = new ArrayList<Integer>(raw_links.size());
 			
@@ -287,7 +286,6 @@ public class ESASearcher {
 				}
 			}
 			
-			count++;
 		}
 		
 		
