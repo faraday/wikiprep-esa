@@ -78,12 +78,13 @@ try:
 	for i in range(outk):
 		si = str(i)
 		cursor.execute("DROP TABLE IF EXISTS zanchor"+si)
-        	cursor.execute("CREATE TABLE zanchor"+si+" (target_id int(10) unsigned, anchor varbinary(255));")
+        	cursor.execute("CREATE TABLE zanchor"+si+" (target_id int(10) unsigned, anchor varbinary(255))")
 		cursor.execute("LOAD DATA LOCAL INFILE '"+outPrefix+si+"' INTO TABLE zanchor"+si)
 		cursor.execute("CREATE INDEX idx_target_id ON zanchor"+si+" (target_id);")
 
 		cursor.execute("DROP TABLE IF EXISTS anchorList"+si)
-	        cursor.execute("CREATE TABLE anchorList"+si+" SELECT a.target_id,GROUP_CONCAT(a.anchor SEPARATOR ' \n') AS anchor_text FROM zanchor"+si+" a WHERE a.anchor IS NOT NULL GROUP BY a.target_id;")
+		cursor.execute("CREATE TABLE anchorList"+si+" (target_id int(10) unsigned, anchor_text mediumblob)")
+	        cursor.execute("INSERT anchorList"+si+" SELECT a.target_id,GROUP_CONCAT(a.anchor SEPARATOR ' \n ') AS anchor_text FROM zanchor"+si+" a WHERE a.anchor IS NOT NULL GROUP BY a.target_id")
 
 		cursor.execute("DROP TABLE zanchor"+si)
 
