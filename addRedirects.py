@@ -9,14 +9,15 @@ USAGE: addRedirects.py <redir file from Wikiprep> <any writeable folder>
 The folder is used by the script to create data files that are loaded into database.
 
 IMPORTANT: If you use XML output from a recent version of Wikiprep
-(e.g. Zemanta fork), then set LEGACY_MODE = False.
+(e.g. Zemanta fork), then set FORMAT to 'Zemanta-legacy' or 'Zemanta-modern'.
 '''
 
 import sys
 import re
 import MySQLdb
 
-LEGACY_MODE = True	# legacy: Gabrilovich, modern: Zemanta
+# formats: 1) Gabrilovich 2) Zemanta-legacy 3) Zemanta-modern
+FORMAT = 'Gabrilovich'	
 
 PARTITION_SIZE = 100000
 
@@ -27,10 +28,10 @@ reModernREDIR = re.compile('<redirect>\n<from>\n<id>.+?</id>\n<name>(?P<text>.+?
 
 reLegacyREDIR = re.compile('<redirect>\n<from>\n<id>.+?</id>\n<title>(?P<text>.+?)</title>.*?</from>\n<to>\n<id>(?P<target>\d+)</id>\n<title>.+?</title>\n</to>\n</redirect>',re.DOTALL|re.MULTILINE)
 
-if LEGACY_MODE:
-	reREDIR = reLegacyREDIR
-else:
+if 'Zemanta-modern':
 	reREDIR = reModernREDIR
+else:
+	reREDIR = reLegacyREDIR
 
 args = sys.argv[1:]
 

@@ -12,7 +12,7 @@ TABLE: pagelinks	COLUMNS: source_id INT, target_id INT
 USAGE: scanData.py <hgw.xml file from Wikiprep>
 
 IMPORTANT: If you use XML output from a recent version of Wikiprep
-(e.g. Zemanta fork), then set LEGACY_MODE = False.
+(e.g. Zemanta fork), then set FORMAT to 'Zemanta-legacy' or 'Zemanta-modern'.
 
 '''
 
@@ -23,7 +23,8 @@ import signal
 
 import lxml.html as html
 
-LEGACY_MODE = True	# legacy: Gabrilovich, modern: Zemanta
+# formats: 1) Gabrilovich 2) Zemanta-legacy 3) Zemanta-modern
+FORMAT = 'Gabrilovich'
 
 reToken = re.compile('[a-zA-Z]+')
 NONSTOP_THRES = 100
@@ -116,10 +117,10 @@ rePageModern = re.compile('<page id="(?P<id>\d+)".+?newlength="(?P<len>\d+)" stu
 
 reContent = re.compile('<title>(?P<title>.+?)</title>\n<categories>(?P<categories>.*?)</categories>\n<links>(?P<links>.*?)</links>.+?<text>(?P<text>.+?)</text>',re.MULTILINE | re.DOTALL)
 
-if LEGACY_MODE:
-	rePage = rePageLegacy
-else:
+if FORMAT == 'Zemanta-modern':
 	rePage = rePageModern
+else:
+	rePage = rePageLegacy
 
 # category, disambig, stub pages are removed by flags
 
@@ -148,9 +149,9 @@ linkBuflen = 0
 def recordArticle(pageDict):
    global articleBuffer, linkBuffer, textBuffer, aBuflen, linkBuflen
 
-   '''if not LEGACY_MODE and (pageDict['stub'] == '1' or pageDict['disambig'] == '1' or pageDict['cat'] == '1' or pageDict['img'] == '1'):
+   '''if FORMAT == 'Zemanta-modern' and (pageDict['stub'] == '1' or pageDict['disambig'] == '1' or pageDict['cat'] == '1' or pageDict['img'] == '1'):
 	return
-   elif LEGACY_MODE and pageDict['stub'] == '1':
+   elif FORMAT != 'Zemanta-modern' pageDict['stub'] == '1':
 	return'''
 
    # a simple check for content
@@ -258,7 +259,7 @@ prevText = ''
 
 firstRead = f.read(10000)
 
-if LEGACY_MODE:
+if FORMAT == 'Gabrilovich':
 	documentStart = firstRead.find('</siteinfo>') + len('</siteinfo>')
 else:
 	documentStart = firstRead.find('<gum>') + len('<gum>')

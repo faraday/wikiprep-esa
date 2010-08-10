@@ -13,7 +13,7 @@ USAGE: addAnchors.py <anchor file from Wikiprep> <any writeable folder>
 The folder is used by the script to create data files that are loaded into database.
 
 IMPORTANT: If you use XML output from a recent version of Wikiprep
-(e.g. Zemanta fork), then set LEGACY_MODE = False.
+(e.g. Zemanta fork), then set FORMAT to 'Zemanta-legacy' or 'Zemanta-modern'.
 '''
 
 import sys
@@ -21,9 +21,10 @@ import MySQLdb
 
 PARTITION_SIZE = 10000000
 
-LEGACY_MODE = True
+# formats: 1) Gabrilovich 2) Zemanta-legacy 3) Zemanta-modern
+FORMAT = 'Gabrilovich'
 
-if LEGACY_MODE:
+if FORMAT == 'Gabrilovich':
 	FIELD_POS = 2
 else:
 	FIELD_POS = 3
