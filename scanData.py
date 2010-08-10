@@ -25,6 +25,36 @@ import lxml.html as html
 
 LEGACY_MODE = True	# legacy: Gabrilovich, modern: Zemanta
 
+reToken = re.compile('[a-zA-Z]+')
+NONSTOP_THRES = 100
+
+# read stop word list from 'lewis_smart_sorted_uniq.txt'
+wordList = []
+try:
+	f = open('lewis_smart_sorted_uniq.txt','r')
+	for word in f.readlines():
+		wordList.append(word.strip())
+	f.close()
+except:
+	print 'Stop words cannot be read! Please put "lewis_smart_sorted_uniq.txt" file containing stop words in this folder.'
+	sys.exit(1)
+
+STOP_WORDS = frozenset(wordList)
+
+# read list of stop categories from 'wiki_stop_categories.txt'
+catList = []
+try:
+	f = open('wiki_stop_categories.txt','r')
+	for line in f.readlines():
+		[strId,strCat] = line.split('\t')
+		catList.append(strId)
+	f.close()
+except:
+	print 'Stop categories cannot be read! Please put "wiki_stop_categories.txt" file containing stop categories in this folder.'
+	sys.exit(1)
+
+STOP_CATS = frozenset(catList)
+
 try:
 	conn = MySQLdb.connect(host='localhost',user='root',passwd='123456',db='wiki',charset = "utf8", use_unicode = True)
 except MySQLdb.Error, e:
@@ -84,7 +114,7 @@ rePageLegacy = re.compile('<page id="(?P<id>\d+)".+?newlength="(?P<len>\d+)" stu
 
 rePageModern = re.compile('<page id="(?P<id>\d+)".+?newlength="(?P<len>\d+)" stub="(?P<stub>\d)" disambig="(?P<disambig>\d)" category="(?P<cat>\d)" image="(?P<img>\d)">(?P<page>.+?)</page>',re.MULTILINE | re.DOTALL)
 
-reContent = re.compile('<title>(?P<title>.+?)</title>.+?<links>(?P<links>.+?)</links>.+?<text>(?P<text>.+?)</text>',re.MULTILINE | re.DOTALL)
+reContent = re.compile('<title>(?P<title>.+?)</title>\n<categories>(?P<categories>.*?)</categories>\n<links>(?P<links>.*?)</links>.+?<text>(?P<text>.+?)</text>',re.MULTILINE | re.DOTALL)
 
 if LEGACY_MODE:
 	rePage = rePageLegacy
@@ -93,8 +123,11 @@ else:
 
 # category, disambig, stub pages are removed by flags
 
-# regex as article filter (dates, wikipedia: etc.)
-re_strings = ['^(January|February|March|April|May|June|July|August|September|October|November|December) \d+$','^\d+( (AD|BC))?$','^List of.+','.+\(disambiguation\)']
+# regex as article filter (dates, lists, etc.)
+re_strings = ['^(January|February|March|April|May|June|July|August|September|October|November|December) \d+$',
+	      '^\d+((st|nd|th) (century|millenium))?( (AD|BC|AH|BH|AP|BP))?( in [^$]+)?$',
+	      '^List of .+',
+	      '.+\(disambiguation\)']
 piped_re = re.compile( "|".join( re_strings ) , re.DOTALL|re.IGNORECASE)
 
 
@@ -115,9 +148,13 @@ linkBuflen = 0
 def recordArticle(pageDict):
    global articleBuffer, linkBuffer, textBuffer, aBuflen, linkBuflen
 
-   if not LEGACY_MODE and (pageDict['stub'] == '1' or int(pageDict['len']) < 800 or pageDict['disambig'] == '1' or pageDict['cat'] == '1' or pageDict['img'] == '1'):
+   '''if not LEGACY_MODE and (pageDict['stub'] == '1' or pageDict['disambig'] == '1' or pageDict['cat'] == '1' or pageDict['img'] == '1'):
 	return
-   elif LEGACY_MODE and pageDict['stub'] == '1' or int(pageDict['len']) < 800:
+   elif LEGACY_MODE and pageDict['stub'] == '1':
+	return'''
+
+   # a simple check for content
+   if int(pageDict['len']) < 10:
 	return
 
    mContent = reContent.search(pageDict['page'])
@@ -134,11 +171,37 @@ def recordArticle(pageDict):
        return
 
    text = contentDict['text']
+   cats = contentDict['categories']
+   cats = cats.split()
    links = contentDict['links']
    links = links.split()
 
+   # filter article with no category or belonging to stop categories
+   if not cats or STOP_CATS.intersection(set(cats)):
+	return
+
    # filter articles with outlinks < 5
    if len(links) < 5:
+	return
+
+   # convert HTML to plain text
+   t = html.fromstring(title.decode("utf-8"))
+   ctitle = t.text_content()
+
+   ctext = '' 
+   t = html.fromstring(text.decode("utf-8"))
+   ctext = t.text_content()
+
+   # filter articles with fewer than 100 non-stop words
+   wordCount = NONSTOP_THRES
+   for m in reToken.finditer(ctext):
+	w = m.group()
+	if w and not (len(w) < 3 or w in STOP_WORDS):
+		wordCount -= 1
+		if wordCount == 0:
+			break
+
+   if wordCount > 0:
 	return
 
    # write links
@@ -156,13 +219,13 @@ def recordArticle(pageDict):
 		linkBuflen = 0
 
    # convert HTML to plain text
-   text = title + " \n " + title + " \n " + text
+   '''text = title + " \n " + title + " \n " + text
    t = html.fromstring(text.decode("utf-8"))
-   text = t.text_content()
+   text = t.text_content()'''
 
    # write article info (id,title,text)
-   articleBuffer.append((id,title))
-   textBuffer.append((id,text))
+   articleBuffer.append((id,ctitle))
+   textBuffer.append((id,ctext))
    aBuflen += 1
 
    if aBuflen >= 200:
