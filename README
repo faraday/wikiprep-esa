@@ -50,6 +50,19 @@ in IndexPruner class.
 * TestGeneralESAVectors: produces and displays "Second Order Interpretation" vector filtered with "Concept Generality Filter" as in Gabrilovich et al. (2009).
 
 
+DEPENDENCIES
+
+Python scripts use MySQL-Python to access database.
+MySQL-Python: http://sourceforge.net/projects/mysql-python/
+
+"esa-lucene" Java project used for indexing, pruning etc. uses MySQL Connector/J to access database,
+Lucene 3.0 for indexing and Trove and these libraries are included in project files.
+
+MySQL Connector/J: http://www.mysql.com/downloads/connector/j/
+Lucene 3.0: http://lucene.apache.org
+Trove: http://trove4j.sourceforge.net/
+
+
 USAGE
 
 python scanData.py <hgw.xml file from Wikiprep dump>
@@ -60,5 +73,10 @@ java -cp esa-lucene.jar edu.wiki.modify.IndexModifier <Lucene index folder>
 java -cp esa-lucene.jar edu.wiki.modify.IndexPruner
 
 
-Then perform a search to test:
+Then perform a feature generation to test:
+
+To generate regular features:
+java -cp esa-lucene.jar edu.wiki.demo.TestESAVectors
+
+To generate features using only more general links: 
 java -cp esa-lucene.jar edu.wiki.demo.TestGeneralESAVectors
