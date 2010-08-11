@@ -42,16 +42,16 @@ except:
 
 STOP_WORDS = frozenset(wordList)
 
-# read list of stop categories from 'wiki_stop_categories.txt'
+# read list of stop categories from 'extended_stop_categories.txt'
 catList = []
 try:
-	f = open('wiki_stop_categories.txt','r')
+	f = open('extended_stop_categories.txt','r')
 	for line in f.readlines():
-		[strId,strCat] = line.split('\t')
+		strId = line.strip()
 		catList.append(strId)
 	f.close()
 except:
-	print 'Stop categories cannot be read! Please put "wiki_stop_categories.txt" file containing stop categories in this folder.'
+	print 'Stop categories cannot be read! Please put "extended_stop_categories.txt" file containing stop categories in this folder.'
 	sys.exit(1)
 
 STOP_CATS = frozenset(catList)
@@ -117,6 +117,8 @@ rePageModern = re.compile('<page id="(?P<id>\d+)".+?newlength="(?P<len>\d+)" stu
 
 reContent = re.compile('<title>(?P<title>.+?)</title>\n<categories>(?P<categories>.*?)</categories>\n<links>(?P<links>.*?)</links>.+?<text>(?P<text>.+?)</text>',re.MULTILINE | re.DOTALL)
 
+reOtherNamespace = re.compile("^(User|Wikipedia|File|MediaWiki|Template|Help|Category|Portal|Book):.+",re.DOTALL)
+
 if FORMAT == 'Zemanta-modern':
 	rePage = rePageModern
 else:
@@ -165,6 +167,11 @@ def recordArticle(pageDict):
    contentDict = mContent.groupdict()
 
    title = contentDict['title']
+
+   # only keep articles of Main namespace
+   if reOtherNamespace.match(title):
+        return
+
    id = int(pageDict['id'])
 
    # filter articles based on title  
