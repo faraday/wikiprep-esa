@@ -14,15 +14,16 @@ It creates "article","text" and "pagelinks" tables.
 * addAnchors.py : that adds anchor text to target articles.
 * addRedirects.py : that adds redirect text to target articles.
 
-The scripts above are able to work on both Wikiprep legacy format and modern format (as in Zemanta fork).
+The scripts above are able to work on both Wikiprep legacy formats and modern format (as in Zemanta fork).
 
 Evgeniy Gabrilovich provides a preprocessed dump for 5 November 2005 snapshot of Wikipedia English.
 
 It is available at: http://www.cs.technion.ac.il/~gabr/resources/code/wikiprep/wikipedia-051105-preprocessed.tar.bz2
 
-In its current LEGACY settings, Python scripts of wikiprep-esa are ready to process this dump.
-If you need to process dumps in modern format, you need to set "LEGACY = False" in these scripts.
+In its current settings, Python scripts of wikiprep-esa are ready to process this dump.
+If you need to process dumps in formats of Zemanta, you need to set FORMAT in these scripts.
 
+FORMAT can be following: "Gabrilovich", "Zemanta-legacy", "Zemanta-modern"
 
 After reading preprocessed dump into the database and adding anchors and redirects, you need to use
 "esa-lucene" to perform indexing.
