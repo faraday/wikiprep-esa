@@ -66,6 +66,7 @@ Trove: http://trove4j.sourceforge.net/
 
 USAGE
 
+python scanCatHier.py <hgw.xml file from Wikiprep dump> <cat_hier output path>
 python scanData.py <hgw.xml file from Wikiprep dump>
 python addAnchors.py <anchor_text file from Wikiprep dump> <a writeable folder>
 
