@@ -167,7 +167,7 @@ public class IndexModifier {
 	    
 	    for(int i=0;i<maxid;i++){
 	    	if(!reader.isDeleted(i)){
-	    		System.out.print(i);
+	    		System.out.println(i);
 	    		
 	    		wikiID = Integer.valueOf(reader.document(i).getField("id").stringValue());
 	    		inlinkBoost = inlinkMap.get(wikiID);
