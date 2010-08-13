@@ -26,7 +26,7 @@ import lxml.html as html
 # formats: 1) Gabrilovich 2) Zemanta-legacy 3) Zemanta-modern
 FORMAT = 'Gabrilovich'
 
-reToken = re.compile('[a-zA-Z]+')
+reToken = re.compile('[a-zA-Z\']+')
 NONSTOP_THRES = 100
 
 # read stop word list from 'lewis_smart_sorted_uniq.txt'
@@ -117,7 +117,7 @@ rePageModern = re.compile('<page id="(?P<id>\d+)".+?newlength="(?P<len>\d+)" stu
 
 reContent = re.compile('<title>(?P<title>.+?)</title>\n<categories>(?P<categories>.*?)</categories>\n<links>(?P<links>.*?)</links>.+?<text>(?P<text>.+?)</text>',re.MULTILINE | re.DOTALL)
 
-reOtherNamespace = re.compile("^(User|Wikipedia|File|MediaWiki|Template|Help|Category|Portal|Book):.+",re.DOTALL)
+reOtherNamespace = re.compile("^(User|Wikipedia|File|MediaWiki|Template|Help|Category|Portal|Book|Talk|Special|Media|WP|User talk|Wikipedia talk|File talk|MediaWiki talk|Template talk|Help talk|Category talk|Portal talk):.+",re.DOTALL)
 
 if FORMAT == 'Zemanta-modern':
 	rePage = rePageModern
@@ -128,7 +128,7 @@ else:
 
 # regex as article filter (dates, lists, etc.)
 re_strings = ['^(January|February|March|April|May|June|July|August|September|October|November|December) \d+$',
-	      '^\d+((st|nd|th) (century|millenium))?( (AD|BC|AH|BH|AP|BP))?( in [^$]+)?$',
+	      '^\d+((s|(st|nd|th) (century|millenium)))?( (AD|BC|AH|BH|AP|BP))?( in [^$]+)?$',
 	      '^List of .+',
 	      '.+\(disambiguation\)']
 piped_re = re.compile( "|".join( re_strings ) , re.DOTALL|re.IGNORECASE)
@@ -204,7 +204,8 @@ def recordArticle(pageDict):
    wordCount = NONSTOP_THRES
    for m in reToken.finditer(ctext):
 	w = m.group()
-	if w and not (len(w) < 3 or w in STOP_WORDS):
+	#if w and not (len(w) < 3 or w.lower() in STOP_WORDS):
+	if w and not (w.lower() in STOP_WORDS):
 		wordCount -= 1
 		if wordCount == 0:
 			break

@@ -34,20 +34,22 @@ except:
 
 rePage = re.compile('<page id="(?P<id>\d+)".+?>(?P<page>.+?)</page>',re.MULTILINE | re.DOTALL)
 
-reContent = re.compile('<title>(?P<title>.+?)</title>\n<categories>(?P<categories>.*?)</categories>',re.MULTILINE | re.DOTALL)
+reContent = re.compile('<title>(?P<title>.+?)</title>\n<categories>(?P<categories>.*?)</categories>\n<links>(?P<links>.*?)</links>',re.MULTILINE | re.DOTALL)
 
 reCategory = re.compile("^Category:.+",re.DOTALL)
 
 RSIZE = 10000000	# read chunk size = 10 MB
 
-outFile = None
-
 catDict = {}
+#linkDict = {}
+
+catList = []
 
 # pageContent - <page>..content..</page>
 # pageDict - stores page attribute dict
 def recordArticle(pageDict):
-   global outFile, catDict
+   #global catDict,linkDict,catList
+   global catDict,catList
 
    mContent = reContent.search(pageDict['page'])
    if not mContent:
@@ -62,19 +64,24 @@ def recordArticle(pageDict):
    id = pageDict['id']
    curId = int(id)
 
+   catList.append(curId)
+
    cats = contentDict['categories']
+   #links = contentDict['links']
 
-   # leaf category
-   if not cats:
-	return
-
-   catIds = []
+   cs = []
    for cat in cats.split():
-	catIds.append(int(cat))
+	c = int(cat)
+	if catDict.has_key(c):
+		catDict[c].append(curId)
+	else:
+		catDict[c] = [curId]
 
-   catDict[curId] = catIds
-
-   outFile.write(id + '\t' + cats + '\n')
+   '''ls = []
+   for l in links.split():
+	ls.append(int(l))
+   if ls:
+   	linkDict[curId] = ls'''
 
    return
 
@@ -82,14 +89,13 @@ def recordArticle(pageDict):
 args = sys.argv[1:]
 # scanCatHier.py <hgw_file> <RSIZE>
 
-if len(args) < 2:
+if len(args) < 1:
     sys.exit()
 
-if len(args) == 3:
-    RSIZE = int(args[2])
+if len(args) == 2:
+    RSIZE = int(args[1])
 
 f = open(args[0],'r')
-outFile = open(args[1],'w')
 prevText = ''
 
 firstRead = f.read(10000)
@@ -117,7 +123,6 @@ while True:
 
     prevText = text[endIndex:]
 
-outFile.close()
 f.close()
 
 print 'cat_hier output complete'
@@ -126,15 +131,25 @@ print 'traversing category tree..'
 cats = set(STOP_CATS)
 outcats = set(STOP_CATS)
 
+#allCatSet = frozenset(catList)
+
 while cats:
 	parent = cats.pop()
-	childs = catDict[parent]
-	outcats.update(childs)
-	
+
+	childs = []
+	if catDict.has_key(parent):
+		childs = catDict[parent]
+
+	'''if linkDict.has_key(parent):
+		for l in linkDict[parent]:
+			if l in allCatSet:
+				childs.append(l)'''
+
 	# avoid cycles/repeats
 	for c in childs:
 		if not c in outcats:
 			cats.add(c)
+			outcats.add(c)
 
 # write extended stop category list
 f = open('extended_stop_categories.txt','w')

@@ -19,7 +19,7 @@ IMPORTANT: If you use XML output from a recent version of Wikiprep
 import sys
 import MySQLdb
 
-PARTITION_SIZE = 10000000
+PARTITION_SIZE = 100000
 
 # formats: 1) Gabrilovich 2) Zemanta-legacy 3) Zemanta-modern
 FORMAT = 'Gabrilovich'
@@ -79,7 +79,7 @@ try:
 	for i in range(outk):
 		si = str(i)
 		cursor.execute("DROP TABLE IF EXISTS zanchor"+si)
-        	cursor.execute("CREATE TABLE zanchor"+si+" (target_id int(10) unsigned, anchor varbinary(255))")
+        	cursor.execute("CREATE TABLE zanchor"+si+" (target_id int(10) unsigned, anchor blob)")
 		cursor.execute("LOAD DATA LOCAL INFILE '"+outPrefix+si+"' INTO TABLE zanchor"+si)
 		cursor.execute("CREATE INDEX idx_target_id ON zanchor"+si+" (target_id);")
 
