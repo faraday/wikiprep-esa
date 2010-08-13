@@ -1,5 +1,7 @@
 package edu.wiki.modify;
 
+import gnu.trove.TIntDoubleHashMap;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileWriter;
@@ -8,6 +10,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
@@ -38,8 +41,14 @@ public class IndexModifier {
 	static String strLoadData = "LOAD DATA LOCAL INFILE 'mod.txt' INTO TABLE tfidf FIELDS ENCLOSED BY \"'\"";
 	
 	static String strAllInlinks = "SELECT target_id,inlink FROM inlinks";
+	
+	static String strLimitQuery = "SELECT COUNT(id) FROM article;";
 
 	private static IndexReader reader = null;
+	
+	static int limitID;
+	
+	private static TIntDoubleHashMap inlinkMap;
 		
 	public static void initDB() throws ClassNotFoundException, SQLException, IOException {
 		// Load the JDBC driver 
@@ -67,6 +76,23 @@ public class IndexModifier {
 				"term VARBINARY(255), doc INT," +
 				"tfidf FLOAT " +
 				") DEFAULT CHARSET=binary");
+		
+		stmtLink = connection.createStatement();
+		ResultSet res = stmtLink.executeQuery(strLimitQuery);
+		res.next();
+		limitID = res.getInt(1);
+		
+		
+		// read inlink counts	
+		inlinkMap = new TIntDoubleHashMap(limitID);
+		
+		int targetID, numInlinks; 
+		res = stmtLink.executeQuery(strAllInlinks);
+		while(res.next()){
+			targetID = res.getInt(1);
+			numInlinks = res.getInt(2);
+			inlinkMap.put(targetID, Math.log(1+Math.log(1+numInlinks)));
+		}
 		
 	}
 	
@@ -103,6 +129,7 @@ public class IndexModifier {
 	    float idf;
 	    float tf;
 	    float tfidf;
+	    double inlinkBoost;
 	    double sum;
 	    
 	    int wikiID;
@@ -140,10 +167,11 @@ public class IndexModifier {
 	    
 	    for(int i=0;i<maxid;i++){
 	    	if(!reader.isDeleted(i)){
-	    		System.out.println(i);
+	    		System.out.print(i);
 	    		
 	    		wikiID = Integer.valueOf(reader.document(i).getField("id").stringValue());
-	    		
+	    		inlinkBoost = inlinkMap.get(wikiID);
+	    			    		
 	    		tv = reader.getTermFreqVector(i, "contents");
 	    		try {
 	    			terms = tv.getTerms();
@@ -169,7 +197,6 @@ public class IndexModifier {
 	    			
 	    			sum += tfidf * tfidf;
 	    				    			
-	    			//System.out.println(i + ": " + term + " " + fq[k] + " " + idfMap.get(term));
 	    		}
 	    		
 	    		
@@ -181,7 +208,7 @@ public class IndexModifier {
 	    			if(!idfMap.containsKey(term))
 	    				continue;
 	    				    			
-	    			tfidf = (float) (tfidfMap.get(term) / sum);
+	    			tfidf = (float) (tfidfMap.get(term) / sum * inlinkBoost);
 	    				    				    			
 	    			// System.out.println(i + ": " + term + " " + fq[k] + " " + tfidf);
 	    			
