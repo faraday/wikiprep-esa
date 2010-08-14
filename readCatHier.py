@@ -4,9 +4,9 @@
 Copyright (C) 2010  Cagatay Calli <ccalli@gmail.com>
 
 Reads cat_hier file and produces extended stop category list.
-Output format: <cat id> <list of immediate descendants cat ids>
+Input format: <cat id> <list of immediate descendants cat ids>
 
-USAGE: scanCatHier.py <hgw.xml file from Wikiprep> <cat_hier output file path>
+USAGE: scanCatHier.py <cat_hier output file path>
 
 IMPORTANT: If you use XML output from a recent version of Wikiprep
 (e.g. Zemanta fork), then set FORMAT to 'Zemanta-legacy' or 'Zemanta-modern'.
