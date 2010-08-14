@@ -24,7 +24,8 @@ STOP_CATS = []
 try:   
         f = open('wiki_stop_categories.txt','r')
         for line in f.readlines():
-                [strId,strCat] = line.split('\t')
+                ps = line.split('\t')
+		strId = ps[0]
                 STOP_CATS.append(int(strId))
         f.close()
 except:
@@ -34,7 +35,7 @@ except:
 
 rePage = re.compile('<page id="(?P<id>\d+)".+?>(?P<page>.+?)</page>',re.MULTILINE | re.DOTALL)
 
-reContent = re.compile('<title>(?P<title>.+?)</title>\n<categories>(?P<categories>.*?)</categories>\n<links>(?P<links>.*?)</links>',re.MULTILINE | re.DOTALL)
+reContent = re.compile('<title>(?P<title>.+?)</title>\n<categories>(?P<categories>.*?)</categories>',re.MULTILINE | re.DOTALL)
 
 reCategory = re.compile("^Category:.+",re.DOTALL)
 
@@ -43,13 +44,12 @@ RSIZE = 10000000	# read chunk size = 10 MB
 catDict = {}
 #linkDict = {}
 
-catList = []
+catTitles = {}
 
 # pageContent - <page>..content..</page>
 # pageDict - stores page attribute dict
 def recordArticle(pageDict):
-   #global catDict,linkDict,catList
-   global catDict,catList
+   global catDict,catList,catTitles
 
    mContent = reContent.search(pageDict['page'])
    if not mContent:
@@ -64,10 +64,9 @@ def recordArticle(pageDict):
    id = pageDict['id']
    curId = int(id)
 
-   catList.append(curId)
+   catTitles[curId] = title
 
    cats = contentDict['categories']
-   #links = contentDict['links']
 
    cs = []
    for cat in cats.split():
@@ -76,12 +75,6 @@ def recordArticle(pageDict):
 		catDict[c].append(curId)
 	else:
 		catDict[c] = [curId]
-
-   '''ls = []
-   for l in links.split():
-	ls.append(int(l))
-   if ls:
-   	linkDict[curId] = ls'''
 
    return
 
@@ -140,11 +133,6 @@ while cats:
 	if catDict.has_key(parent):
 		childs = catDict[parent]
 
-	'''if linkDict.has_key(parent):
-		for l in linkDict[parent]:
-			if l in allCatSet:
-				childs.append(l)'''
-
 	# avoid cycles/repeats
 	for c in childs:
 		if not c in outcats:
@@ -154,5 +142,5 @@ while cats:
 # write extended stop category list
 f = open('extended_stop_categories.txt','w')
 for c in outcats:
-	f.write(str(c) + '\n')
+	f.write(str(c) + '\t' + catTitles[c] + '\n')
 f.close()
