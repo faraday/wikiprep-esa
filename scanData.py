@@ -47,7 +47,7 @@ catList = []
 try:
 	f = open('extended_stop_categories.txt','r')
 	for line in f.readlines():
-		strId = line.strip()
+		strId = line.split('\t')[0]
 		catList.append(strId)
 	f.close()
 except:
@@ -226,11 +226,6 @@ def recordArticle(pageDict):
 
 		linkBuffer = []
 		linkBuflen = 0
-
-   # convert HTML to plain text
-   '''text = title + " \n " + title + " \n " + text
-   t = html.fromstring(text.decode("utf-8"))
-   text = t.text_content()'''
 
    # write article info (id,title,text)
    articleBuffer.append((id,ctitle))
