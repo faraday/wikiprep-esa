@@ -55,7 +55,7 @@ public class TestESAVectors {
 		ESASearcher searcher = new ESASearcher();
 		initDB();
 		
-		BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+		BufferedReader in = new BufferedReader(new InputStreamReader(System.in,"UTF-8"));
 		String text = in.readLine();
 		
 		IConceptVector cvBase = searcher.getConceptVector(text);

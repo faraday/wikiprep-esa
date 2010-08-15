@@ -29,7 +29,7 @@ public class TestGeneralESAVectors {
 		
 		// read DB config
 		InputStream is = ESASearcher.class.getResourceAsStream("/config/db.conf");
-		BufferedReader br = new BufferedReader(new InputStreamReader(is));
+		BufferedReader br = new BufferedReader(new InputStreamReader(is,"UTF-8"));
 		String serverName = br.readLine();
 		String mydatabase = br.readLine();
 		String username = br.readLine(); 

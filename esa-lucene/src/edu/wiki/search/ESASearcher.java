@@ -40,12 +40,14 @@ public class ESASearcher {
 	Connection connection;
 	
 	PreparedStatement pstmtQuery;
+	PreparedStatement pstmtIdfQuery;
 	PreparedStatement pstmtLinks;
 	Statement stmtInlink;
 	
 	WikipediaAnalyzer analyzer;
 	
 	String strTermQuery = "SELECT t.doc,t.tfidf FROM tfidf t WHERE t.term = ?";
+	String strIdfQuery = "SELECT t.idf FROM terms t WHERE t.term = ?";
 	
 	String strMaxConcept = "SELECT MAX(id) FROM article";
 	
@@ -57,6 +59,12 @@ public class ESASearcher {
 	
 	int[] ids;
 	double[] values;
+	
+	HashMap<String, Integer> freqMap = new HashMap<String, Integer>(30);
+	HashMap<String, Double> tfidfMap = new HashMap<String, Double>(30);
+	HashMap<String, Float> idfMap = new HashMap<String, Float>(30);
+	
+	ArrayList<String> termList = new ArrayList<String>(30);
 	
 	TIntIntHashMap inlinkMap;
 	
@@ -82,6 +90,9 @@ public class ESASearcher {
 		
 		pstmtQuery = connection.prepareStatement(strTermQuery);
 		pstmtQuery.setFetchSize(500);
+		
+		pstmtIdfQuery = connection.prepareStatement(strIdfQuery);
+		pstmtIdfQuery.setFetchSize(1);
 		
 		pstmtLinks = connection.prepareStatement(strLinks);
 		pstmtLinks.setFetchSize(500);
@@ -116,9 +127,16 @@ public class ESASearcher {
 		ResultSet rs;
 		int doc;
 		float score;
+		int vint;
+		double vdouble;
+		double tf;
+		double vsum;
         TokenStream ts = analyzer.tokenStream("contents",new StringReader(query));
 
 		Arrays.fill( values, 0 );
+		freqMap.clear();
+		tfidfMap.clear();
+		termList.clear();
 
 		for( int i=0; i<ids.length; i++ ) {
 			ids[i] = i;
@@ -130,8 +148,58 @@ public class ESASearcher {
         	
             TermAttribute t = ts.getAttribute(TermAttribute.class);
             strTerm = t.term();
-                        
-            pstmtQuery.setBytes(1, strTerm.getBytes("UTF-8"));
+            
+            // record term IDF
+            if(!idfMap.containsKey(strTerm)){
+	            pstmtIdfQuery.setBytes(1, strTerm.getBytes("UTF-8"));
+	            pstmtIdfQuery.execute();
+	            
+	            rs = pstmtIdfQuery.getResultSet();
+	            if(rs.next()){
+	            	idfMap.put(strTerm, rs.getFloat(1));	          	  
+	            }
+            }
+            
+            // records term counts for TF
+            if(freqMap.containsKey(strTerm)){
+            	vint = freqMap.get(strTerm);
+            	freqMap.put(strTerm, vint+1);
+            }
+            else {
+            	freqMap.put(strTerm, 1);
+            }
+            
+            termList.add(strTerm);
+	            
+            numTerms++;	
+
+        }
+                
+        ts.end();
+        ts.close();
+                
+        if(numTerms == 0){
+        	return null;
+        }
+        
+        // calculate TF-IDF vector (normalized)
+        vsum = 0;
+        for(String tk : idfMap.keySet()){
+        	tf = 1.0 + Math.log(freqMap.get(tk));
+        	vdouble = (idfMap.get(tk) * tf);
+        	tfidfMap.put(tk, vdouble);
+        	vsum += vdouble * vdouble;
+        }
+        vsum = Math.sqrt(vsum);
+        
+        for(String tk : idfMap.keySet()){
+        	vdouble = tfidfMap.get(tk);
+        	tfidfMap.put(tk, vdouble / vsum);
+        }
+        
+        for (String tk : termList) { 
+        	            
+            pstmtQuery.setBytes(1, tk.getBytes("UTF-8"));
             pstmtQuery.execute();
             
             rs = pstmtQuery.getResultSet();
@@ -140,18 +208,9 @@ public class ESASearcher {
           	  doc = rs.getInt(1);
           	  score = rs.getFloat(2);
           	  
-          	  values[doc] += score;
+          	  values[doc] += score * tfidfMap.get(tk);
             }
-            
-            numTerms++;	
 
-        } 
-        
-        ts.end();
-        ts.close();      
-        
-        if(numTerms == 0){
-        	return null;
         }
         
         HeapSort.heapSort( values, ids );

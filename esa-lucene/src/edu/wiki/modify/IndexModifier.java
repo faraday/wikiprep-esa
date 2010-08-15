@@ -4,10 +4,11 @@ import gnu.trove.TIntDoubleHashMap;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -43,6 +44,8 @@ public class IndexModifier {
 	static String strAllInlinks = "SELECT target_id,inlink FROM inlinks";
 	
 	static String strLimitQuery = "SELECT COUNT(id) FROM article;";
+	
+	static String strTermLoadData = "LOAD DATA LOCAL INFILE 'term.txt' INTO TABLE terms FIELDS ENCLOSED BY \"'\"";
 
 	private static IndexReader reader = null;
 	
@@ -75,6 +78,12 @@ public class IndexModifier {
 		stmtLink.execute("CREATE TABLE tfidf (" +
 				"term VARBINARY(255), doc INT," +
 				"tfidf FLOAT " +
+				") DEFAULT CHARSET=binary");
+		
+		stmtLink.execute("DROP TABLE IF EXISTS terms");
+		stmtLink.execute("CREATE TABLE terms (" +
+				"term VARBINARY(255)," +
+				"idf FLOAT " +
 				") DEFAULT CHARSET=binary");
 		
 		stmtLink = connection.createStatement();
@@ -162,7 +171,9 @@ public class IndexModifier {
 	    	
 	    }
 	    
-		FileWriter bw = new FileWriter("mod.txt");
+		//FileWriter bw = new FileWriter("mod.txt");
+		FileOutputStream fos = new FileOutputStream("mod.txt");
+		OutputStreamWriter osw = new OutputStreamWriter(fos,"UTF-8");
 
 	    
 	    for(int i=0;i<maxid;i++){
@@ -213,18 +224,20 @@ public class IndexModifier {
 	    			// System.out.println(i + ": " + term + " " + fq[k] + " " + tfidf);
 	    			
 	    			// ++++ record to DB +++++
-	    			bw.write("'" +  term.replace("\\","\\\\").replace("'","\\'") + "'\t"+wikiID+"\t"+tfidf+"\n");
+	    			osw.write("'" +  term.replace("\\","\\\\").replace("'","\\'") + "'\t"+wikiID+"\t"+tfidf+"\n");
 					
 					qcount++;
 					
 					if(qcount > 100000){
-						bw.flush();
+						osw.flush();
 
 						stmtLink.execute(strLoadData);
 						
 						qcount = 0;
 							
-						bw = new FileWriter("mod.txt",false);
+						//bw = new FileWriter("mod.txt",false);
+						fos = new FileOutputStream("mod.txt",false);
+						osw = new OutputStreamWriter(fos,"UTF-8");
 						
 						
 						
@@ -245,17 +258,29 @@ public class IndexModifier {
 	    
 	    // write last part to DB
 	    if(qcount > 0){
-			bw.flush();
+			osw.flush();
 			stmtLink.execute(strLoadData);
 			qcount = 0;
-			bw = new FileWriter("mod.txt",false);
+			//bw = new FileWriter("mod.txt",false);
+			fos = new FileOutputStream("mod.txt",false);
+			osw = new OutputStreamWriter(fos,"UTF-8");
 		}
 	    
 	   
 		stmtLink.execute("CREATE INDEX idx_term ON tfidf (term(32))");
 		
-		stmtLink.execute("DROP TABLE IF EXISTS terms");
-		stmtLink.execute("CREATE TABLE terms AS SELECT DISTINCT t.term FROM tfidf t");
+		// record term-idf pairs
+		// FileWriter tw = new FileWriter("term.txt");
+		FileOutputStream tos = new FileOutputStream("term.txt");
+		OutputStreamWriter tsw = new OutputStreamWriter(tos,"UTF-8");
+		
+		
+		for(String tk : idfMap.keySet()){
+			tsw.write("'" +  tk.replace("\\","\\\\").replace("'","\\'") + "'\t"+idfMap.get(tk)+"\n");
+		}
+		tsw.close();
+		stmtLink.execute(strTermLoadData);
+		stmtLink.execute("CREATE INDEX idx_term ON terms (term(32))");
 	    
 	    eTime = System.currentTimeMillis();
 	    
@@ -265,7 +290,7 @@ public class IndexModifier {
 	    reader.close();
 	    connection.close();
 	    
-	    bw.close();
+	    osw.close();
 
 	}
 
