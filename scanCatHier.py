@@ -42,14 +42,12 @@ reCategory = re.compile("^Category:.+",re.DOTALL)
 RSIZE = 10000000	# read chunk size = 10 MB
 
 catDict = {}
-#linkDict = {}
-
 catTitles = {}
 
 # pageContent - <page>..content..</page>
 # pageDict - stores page attribute dict
 def recordArticle(pageDict):
-   global catDict,catList,catTitles
+   global catDict,catTitles
 
    mContent = reContent.search(pageDict['page'])
    if not mContent:
@@ -72,9 +70,9 @@ def recordArticle(pageDict):
    for cat in cats.split():
 	c = int(cat)
 	if catDict.has_key(c):
-		catDict[c].append(curId)
+		catDict[c].add(curId)
 	else:
-		catDict[c] = [curId]
+		catDict[c] = set([curId])
 
    return
 
@@ -123,8 +121,6 @@ print 'traversing category tree..'
 
 cats = set(STOP_CATS)
 outcats = set(STOP_CATS)
-
-#allCatSet = frozenset(catList)
 
 while cats:
 	parent = cats.pop()

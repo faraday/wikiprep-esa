@@ -48,7 +48,8 @@ try:
 	f = open('extended_stop_categories.txt','r')
 	for line in f.readlines():
 		strId = line.split('\t')[0]
-		catList.append(strId)
+		if strId:
+			catList.append(strId)
 	f.close()
 except:
 	print 'Stop categories cannot be read! Please put "extended_stop_categories.txt" file containing stop categories in this folder.'
@@ -179,13 +180,17 @@ def recordArticle(pageDict):
        return
 
    text = contentDict['text']
-   cats = contentDict['categories']
-   cats = cats.split()
+   cs = contentDict['categories']
+   cs = cs.split()
+   cats = set()
+   for c in cs:
+	if c:
+		cats.add(c)
    links = contentDict['links']
    links = links.split()
 
    # filter article with no category or belonging to stop categories
-   if not cats or STOP_CATS.intersection(set(cats)):
+   if not cats or STOP_CATS.intersection(cats):
 	return
 
    # filter articles with outlinks < 5
