@@ -147,6 +147,11 @@ linkBuffer = []		# len: 10000
 linkBuflen = 0 
 ###
 
+
+# for logging
+# Filtered concept id=12 (hede hodo) [minIncomingLinks]
+log = open('log.txt','w')
+
 # pageContent - <page>..content..</page>
 # pageDict - stores page attribute dict
 def recordArticle(pageDict):
@@ -177,6 +182,7 @@ def recordArticle(pageDict):
 
    # filter articles based on title  
    if piped_re.match(title):
+       log.write('Filtered concept id='+str(id)+' ('+ title +') [regex]\n')
        return
 
    text = contentDict['text']
@@ -191,10 +197,12 @@ def recordArticle(pageDict):
 
    # filter article with no category or belonging to stop categories
    if not cats or STOP_CATS.intersection(cats):
+        log.write('Filtered concept id='+str(id)+' ('+ title +') [stop category]\n')
 	return
 
    # filter articles with outlinks < 5
    if len(links) < 5:
+        log.write('Filtered concept id='+str(id)+' ('+ title +') [minOutgoingLinks]\n')
 	return
 
    # convert HTML to plain text
@@ -216,6 +224,7 @@ def recordArticle(pageDict):
 			break
 
    if wordCount > 0:
+        log.write('Filtered concept id='+str(id)+' ('+ title +') [minNumFeaturesPerArticle]\n')
 	return
 
    # write links
@@ -321,9 +330,16 @@ cursor.execute("DROP TABLE IF EXISTS inlinks")
 cursor.execute("CREATE TABLE inlinks AS SELECT p.target_id, COUNT(p.source_id) AS inlink FROM pagelinks p GROUP BY p.target_id")
 cursor.execute("CREATE INDEX idx_target_id ON inlinks (inlink)")
 
+# list articles discarded because of minIncomingLinks
+cursor.execute("SELECT a.* FROM article a, inlinks i WHERE a.id = i.target_id AND i.inlink < 5")
+rows = cursor.fetchall()
+for row in rows:
+        log.write('Filtered concept id='+str(row[0])+' ('+ row[1] +') [minIncomingLinks]\n')
+	
+
 # filter
 cursor.execute("CREATE TABLE tmparticle LIKE article")
-cursor.execute("INSERT tmparticle SELECT a.* FROM article a, inlinks i WHERE a.id = i.target_id AND i.inlink > 5")
+cursor.execute("INSERT tmparticle SELECT a.* FROM article a, inlinks i WHERE a.id = i.target_id AND i.inlink >= 5")
 cursor.execute("DROP TABLE article")
 cursor.execute("RENAME TABLE tmparticle TO article")
 
@@ -342,4 +358,6 @@ print "Articles: ", r[0]
 # release DB resources
 cursor.close()
 conn.close()
+
+log.close()
 
