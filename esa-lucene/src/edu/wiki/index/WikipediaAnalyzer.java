@@ -10,6 +10,7 @@ import java.util.Set;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CharArraySet;
+import org.apache.lucene.analysis.CustomTokenizer;
 import org.apache.lucene.analysis.LengthFilter;
 import org.apache.lucene.analysis.LetterTokenizer;
 import org.apache.lucene.analysis.LowerCaseFilter;
@@ -58,7 +59,8 @@ public class WikipediaAnalyzer extends Analyzer {
             streams = new SavedStreams();
             setPreviousTokenStream(streams);
 
-            streams.tokenizer = new LetterTokenizer(reader);
+            // streams.tokenizer = new LetterTokenizer(reader);
+            streams.tokenizer = new CustomTokenizer(reader);
             
             streams.stream = new StandardFilter(streams.tokenizer);
             streams.stream = new LengthFilter(streams.stream, 3, 100);
@@ -81,7 +83,8 @@ public class WikipediaAnalyzer extends Analyzer {
     public TokenStream tokenStream(
         String fieldName, Reader reader) {
 
-        Tokenizer tokenizer = new LetterTokenizer(reader);
+        // Tokenizer tokenizer = new LetterTokenizer(reader);
+    	Tokenizer tokenizer = new CustomTokenizer(reader);
 
         TokenStream stream = new StandardFilter(tokenizer);
         stream = new LengthFilter(stream, 3, 100);
