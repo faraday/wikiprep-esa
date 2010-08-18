@@ -26,7 +26,7 @@ import lxml.html as html
 # formats: 1) Gabrilovich 2) Zemanta-legacy 3) Zemanta-modern
 FORMAT = 'Gabrilovich'
 
-reToken = re.compile('[a-zA-Z\']+')
+reToken = re.compile('[a-zA-Z\-]+')
 NONSTOP_THRES = 100
 
 # read stop word list from 'lewis_smart_sorted_uniq.txt'
@@ -86,17 +86,6 @@ try:
 		) DEFAULT CHARSET=binary MAX_ROWS=10000000 AVG_ROW_LENGTH=10240;
 	""")
 
-	cursor.execute("DROP TABLE IF EXISTS pagelinks")
-	cursor.execute("""
-		CREATE TABLE pagelinks
-		(
-		  source_id INT(10),
-		  target_id INT(10),
-		  KEY (source_id),
-		  KEY (target_id)
-		) DEFAULT CHARSET=binary
-	""")
-
 except MySQLdb.Error, e:
 	print "Error %d: %s" % (e.args[0], e.args[1])
 	sys.exit (1)
@@ -116,7 +105,7 @@ rePageLegacy = re.compile('<page id="(?P<id>\d+)".+?newlength="(?P<len>\d+)" stu
 
 rePageModern = re.compile('<page id="(?P<id>\d+)".+?newlength="(?P<len>\d+)" stub="(?P<stub>\d)" disambig="(?P<disambig>\d)" category="(?P<cat>\d)" image="(?P<img>\d)">(?P<page>.+?)</page>',re.MULTILINE | re.DOTALL)
 
-reContent = re.compile('<title>(?P<title>.+?)</title>\n<categories>(?P<categories>.*?)</categories>\n<links>(?P<links>.*?)</links>.+?<text>(?P<text>.+?)</text>',re.MULTILINE | re.DOTALL)
+reContent = re.compile('<title>(?P<title>.+?)</title>\n<categories>(?P<categories>.*?)</categories>.+?<text>(?P<text>.+?)</text>',re.MULTILINE | re.DOTALL)
 
 reOtherNamespace = re.compile("^(User|Wikipedia|File|MediaWiki|Template|Help|Category|Portal|Book|Talk|Special|Media|WP|User talk|Wikipedia talk|File talk|MediaWiki talk|Template talk|Help talk|Category talk|Portal talk):.+",re.DOTALL)
 
@@ -128,11 +117,20 @@ else:
 # category, disambig, stub pages are removed by flags
 
 # regex as article filter (dates, lists, etc.)
-re_strings = ['^(January|February|March|April|May|June|July|August|September|October|November|December) \d+$',
+'''re_strings = ['^(January|February|March|April|May|June|July|August|September|October|November|December) \d+$',
 	      '^\d+((s|(st|nd|th) (century|millenium)))?( (AD|BC|AH|BH|AP|BP))?( in [^$]+)?$',
 	      '^List of .+',
-	      '.+\(disambiguation\)']
+	      '.+\(disambiguation\)']'''
+
+# year_in ...
+# month_year
+# digit
+re_strings = ['^(January|February|March|April|May|June|July|August|September|October|November|December) \d{4}$',
+	      '^\d{4} in [^$]+?$',
+	      '^\d+$']
 piped_re = re.compile( "|".join( re_strings ) , re.DOTALL|re.IGNORECASE)
+
+reList = re.compile('^List of .+',re.DOTALL|re.IGNORECASE)
 
 
 RSIZE = 10000000	# read chunk size = 10 MB
@@ -143,10 +141,20 @@ aBuflen = 0
 
 textBuffer = []		# same as articleBuffer, stores text
 
-linkBuffer = []		# len: 10000
-linkBuflen = 0 
 ###
 
+inlinkDict = {}
+outlinkDict = {}
+
+cursor.execute("SELECT i.target_id, i.inlink FROM inlinks i")
+rows = cursor.fetchall()
+for row in rows:
+	inlinkDict[row[0]] = row[1]
+
+cursor.execute("SELECT o.source_id, o.outlink FROM outlinks o")
+rows = cursor.fetchall()
+for row in rows:
+	outlinkDict[row[0]] = row[1]
 
 # for logging
 # Filtered concept id=12 (hede hodo) [minIncomingLinks]
@@ -155,7 +163,7 @@ log = open('log.txt','w')
 # pageContent - <page>..content..</page>
 # pageDict - stores page attribute dict
 def recordArticle(pageDict):
-   global articleBuffer, linkBuffer, textBuffer, aBuflen, linkBuflen
+   global articleBuffer, textBuffer, aBuflen
 
    '''if FORMAT == 'Zemanta-modern' and (pageDict['stub'] == '1' or pageDict['disambig'] == '1' or pageDict['cat'] == '1' or pageDict['img'] == '1'):
 	return
@@ -185,6 +193,9 @@ def recordArticle(pageDict):
        log.write('Filtered concept id='+str(id)+' ('+ title +') [regex]\n')
        return
 
+   if reList.match(title):
+       log.write('Filtered concept id='+str(id)+' ('+ title +') [list]\n')
+
    text = contentDict['text']
    cs = contentDict['categories']
    cs = cs.split()
@@ -192,16 +203,17 @@ def recordArticle(pageDict):
    for c in cs:
 	if c:
 		cats.add(c)
-   links = contentDict['links']
-   links = links.split()
 
    # filter article with no category or belonging to stop categories
    if not cats or STOP_CATS.intersection(cats):
         log.write('Filtered concept id='+str(id)+' ('+ title +') [stop category]\n')
 	return
 
-   # filter articles with outlinks < 5
-   if len(links) < 5:
+   if not inlinkDict.has_key(id) or inlinkDict[id] < 5:
+        log.write('Filtered concept id='+str(id)+' ('+ title +') [minIncomingLinks]\n')
+	return
+
+   if not outlinkDict.has_key(id) or outlinkDict[id] < 5:
         log.write('Filtered concept id='+str(id)+' ('+ title +') [minOutgoingLinks]\n')
 	return
 
@@ -214,32 +226,25 @@ def recordArticle(pageDict):
    ctext = t.text_content()
 
    # filter articles with fewer than 100 non-stop words
+
+   # tokens = set()
    wordCount = NONSTOP_THRES
    for m in reToken.finditer(ctext):
 	w = m.group()
-	#if w and not (len(w) < 3 or w.lower() in STOP_WORDS):
-	if w and not (w.lower() in STOP_WORDS):
+	if not w:
+		continue
+	lword = w.lower()
+	# if not (w[0] == '-' or lword in STOP_WORDS or lword in tokens):
+	# if w and not (w.lower() in STOP_WORDS):
+	if w and not (w[0] == '-' or (lword in STOP_WORDS)):
 		wordCount -= 1
+		#tokens.add(lword)
 		if wordCount == 0:
 			break
 
    if wordCount > 0:
         log.write('Filtered concept id='+str(id)+' ('+ title +') [minNumFeaturesPerArticle]\n')
 	return
-
-   # write links
-   for l in links:
-	linkBuffer.append((id,l)) # source, target
-	linkBuflen += 1
-
-   	if linkBuflen >= 10000:
-		cursor.executemany("""
-			INSERT INTO pagelinks (source_id,target_id)
-			VALUES (%s,%s)
-			""",linkBuffer)
-
-		linkBuffer = []
-		linkBuflen = 0
 
    # write article info (id,title,text)
    articleBuffer.append((id,ctitle))
@@ -301,16 +306,6 @@ while True:
 
 f.close()
 
-# last writes
-if linkBuflen > 0:
-	cursor.executemany("""
-		INSERT INTO pagelinks (source_id,target_id)
-		VALUES (%s,%s)
-		""",linkBuffer)
-
-	linkBuffer = []
-
-
 if aBuflen > 0:
 	cursor.executemany("""
 		INSERT INTO article (id,title)
@@ -323,29 +318,10 @@ if aBuflen > 0:
 	articleBuffer = []
 	textBuffer = []
 
-# remove article with inlink < 5 , outlinks < 5
-
-# inlinks
-cursor.execute("DROP TABLE IF EXISTS inlinks")
-cursor.execute("CREATE TABLE inlinks AS SELECT p.target_id, COUNT(p.source_id) AS inlink FROM pagelinks p GROUP BY p.target_id")
-cursor.execute("CREATE INDEX idx_target_id ON inlinks (inlink)")
-
-# list articles discarded because of minIncomingLinks
-cursor.execute("SELECT a.* FROM article a, inlinks i WHERE a.id = i.target_id AND i.inlink < 5")
-rows = cursor.fetchall()
-for row in rows:
-        log.write('Filtered concept id='+str(row[0])+' ('+ row[1] +') [minIncomingLinks]\n')
-	
-
-# filter
-cursor.execute("CREATE TABLE tmparticle LIKE article")
-cursor.execute("INSERT tmparticle SELECT a.* FROM article a, inlinks i WHERE a.id = i.target_id AND i.inlink >= 5")
-cursor.execute("DROP TABLE article")
-cursor.execute("RENAME TABLE tmparticle TO article")
-
-#cursor.execute("DROP TABLE inlinks")
+cursor.execute("DROP TABLE outlinks")
 
 # remove links to articles that are filtered out
+cursor.execute("DROP TABLE IF EXISTS tmppagelinks")
 cursor.execute("CREATE TABLE tmppagelinks LIKE pagelinks")
 cursor.execute("INSERT tmppagelinks SELECT * FROM pagelinks WHERE EXISTS (SELECT id FROM article WHERE id = target_id) AND EXISTS (SELECT id FROM article WHERE id = source_id)")
 cursor.execute("DROP TABLE pagelinks")
