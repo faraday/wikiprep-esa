@@ -318,11 +318,13 @@ public class ESASearcher {
 		}
 		
 		// prepare inlink counts
-		inlinkMap.clear();
 		setInlinkCounts(pages);
 				
 		for(int pid : pages){			
 			Collection<Integer> raw_links = getLinks(pid);
+			if(raw_links.isEmpty()){
+				continue;
+			}
 			ArrayList<Integer> links = new ArrayList<Integer>(raw_links.size());
 			
 			final double inlink_factor_p = Math.log(inlinkMap.get(pid));
