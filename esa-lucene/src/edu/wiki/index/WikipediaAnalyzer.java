@@ -36,7 +36,10 @@ public class WikipediaAnalyzer extends Analyzer {
 		String line;
 		
 		while((line = br.readLine()) != null){
-			stopWords.add(line);
+			line = line.trim();
+			if(!line.equals("")){
+				stopWords.add(line.trim());
+			}
 		}
 		
 		br.close();
@@ -63,10 +66,12 @@ public class WikipediaAnalyzer extends Analyzer {
             streams.tokenizer = new CustomTokenizer(reader);
             
             streams.stream = new StandardFilter(streams.tokenizer);
-            streams.stream = new LengthFilter(streams.stream, 3, 100);
+            // streams.stream = new LengthFilter(streams.stream, 3, 100);
             streams.stream = new LowerCaseFilter(streams.stream);
             // streams.stream = new StopFilter(true, streams.stream, StopAnalyzer.ENGLISH_STOP_WORDS_SET);
             streams.stream = new StopFilter(true, streams.stream, ENGLISH_STOP_WORDS_SET);
+            streams.stream = new PorterStemFilter(streams.stream);
+            streams.stream = new PorterStemFilter(streams.stream);
             streams.stream = new PorterStemFilter(streams.stream);
         } else {
             streams.tokenizer.reset(reader);
@@ -87,10 +92,12 @@ public class WikipediaAnalyzer extends Analyzer {
     	Tokenizer tokenizer = new CustomTokenizer(reader);
 
         TokenStream stream = new StandardFilter(tokenizer);
-        stream = new LengthFilter(stream, 3, 100);
+        // stream = new LengthFilter(stream, 3, 100);
         stream = new LowerCaseFilter(stream);
         // stream = new StopFilter(true, stream, StopAnalyzer.ENGLISH_STOP_WORDS_SET);
         stream = new StopFilter(true, stream, ENGLISH_STOP_WORDS_SET);
+        stream = new PorterStemFilter(stream);
+        stream = new PorterStemFilter(stream);
         stream = new PorterStemFilter(stream);
 
         return stream;
