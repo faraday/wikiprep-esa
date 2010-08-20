@@ -2,7 +2,6 @@ package edu.wiki.modify;
 
 import java.io.BufferedReader;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -54,7 +53,7 @@ public class IndexPruner {
 		br.close();
 
 		// Create a connection to the database 
-		String url = "jdbc:mysql://" + serverName + "/" + mydatabase; // a JDBC url 
+		String url = "jdbc:mysql://" + serverName + "/" + mydatabase + "?useUnicode=yes&characterEncoding=UTF-8"; // a JDBC url 
 		connection = DriverManager.getConnection(url, username, password);
 		
 		pstmtTerm = connection.createStatement();
