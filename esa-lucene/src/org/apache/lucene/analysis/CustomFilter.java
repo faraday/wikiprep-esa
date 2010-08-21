@@ -45,23 +45,28 @@ public final class CustomFilter extends TokenFilter {
    */
   @Override
   public final boolean incrementToken() throws IOException {
+	  boolean valid;
 	  
     // return the first non-stop word found
     while (input.incrementToken()) {
       char[] cs = termAtt.termBuffer();
+      valid = true;
       for(int i=0;i<cs.length;i++){
     	  if(Character.isLetter(cs[i]) || cs[i] == '-' || cs[i] == '_'){
     		  continue;
     	  }
-    	  if(Character.isDigit(cs[i])){
-    		  return false;
+    	  else if(Character.isDigit(cs[i])){
+    		  valid = false;
+    		  break;
     	  }
     	  else {
-    		  return false;
+    		  valid = false;
+    		  break;
     	  }
       }
       
-      return true;
+      if(valid)
+    	  return true;
       
     }
     // reached EOS -- return false
