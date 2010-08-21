@@ -46,12 +46,12 @@ public final class CustomFilter extends TokenFilter {
   @Override
   public final boolean incrementToken() throws IOException {
 	  boolean valid;
-	  
+	  	  
     // return the first non-stop word found
     while (input.incrementToken()) {
       char[] cs = termAtt.termBuffer();
       valid = true;
-      for(int i=0;i<cs.length;i++){
+      for(int i=0;i<termAtt.termLength();i++){
     	  if(Character.isLetter(cs[i]) || cs[i] == '-' || cs[i] == '_'){
     		  continue;
     	  }
