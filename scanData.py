@@ -32,8 +32,7 @@ TITLE_WEIGHT = 4
 
 # reToken = re.compile('[a-zA-Z\-]+')
 reToken = re.compile("[^ \t\n\r`~!@#$%^&*()_=+|\[;\]\{\},./?<>:’'\\\\\"]+")
-reAlpha = re.compile("[a-zA-Z\-_]")
-reNum = re.compile("[0-9]")
+reAlpha = re.compile("^[a-zA-Z\-_]+$")
 NONSTOP_THRES = 100
 
 STEMMER = Stemmer.Stemmer('porter')
@@ -248,7 +247,7 @@ def recordArticle(pageDict):
    wordCount = 0
    for m in reToken.finditer(cmerged):
 	w = m.group()
-	if not w or len(w) <= 2 or not reAlpha.search(w) or reNum.search(w):
+	if not w or len(w) <= 2 or not reAlpha.match(w):
 		continue
 	lword = w.lower()
 	if not lword in STOP_WORDS:
