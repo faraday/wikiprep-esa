@@ -10,6 +10,7 @@ import java.util.Set;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CharArraySet;
+import org.apache.lucene.analysis.CustomFilter;
 import org.apache.lucene.analysis.CustomTokenizer;
 import org.apache.lucene.analysis.LengthFilter;
 import org.apache.lucene.analysis.LetterTokenizer;
@@ -66,10 +67,11 @@ public class WikipediaAnalyzer extends Analyzer {
             streams.tokenizer = new CustomTokenizer(reader);
             
             streams.stream = new StandardFilter(streams.tokenizer);
-            // streams.stream = new LengthFilter(streams.stream, 3, 100);
+            streams.stream = new LengthFilter(streams.stream, 3, 100);
             streams.stream = new LowerCaseFilter(streams.stream);
             // streams.stream = new StopFilter(true, streams.stream, StopAnalyzer.ENGLISH_STOP_WORDS_SET);
             streams.stream = new StopFilter(true, streams.stream, ENGLISH_STOP_WORDS_SET);
+            streams.stream = new CustomFilter(streams.stream);
             streams.stream = new PorterStemFilter(streams.stream);
             streams.stream = new PorterStemFilter(streams.stream);
             streams.stream = new PorterStemFilter(streams.stream);
@@ -92,10 +94,11 @@ public class WikipediaAnalyzer extends Analyzer {
     	Tokenizer tokenizer = new CustomTokenizer(reader);
 
         TokenStream stream = new StandardFilter(tokenizer);
-        // stream = new LengthFilter(stream, 3, 100);
+        stream = new LengthFilter(stream, 3, 100);
         stream = new LowerCaseFilter(stream);
         // stream = new StopFilter(true, stream, StopAnalyzer.ENGLISH_STOP_WORDS_SET);
         stream = new StopFilter(true, stream, ENGLISH_STOP_WORDS_SET);
+        stream = new CustomFilter(stream);
         stream = new PorterStemFilter(stream);
         stream = new PorterStemFilter(stream);
         stream = new PorterStemFilter(stream);
