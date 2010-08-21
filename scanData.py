@@ -32,9 +32,11 @@ TITLE_WEIGHT = 4
 
 # reToken = re.compile('[a-zA-Z\-]+')
 reToken = re.compile("[^ \t\n\r`~!@#$%^&*()_=+|\[;\]\{\},./?<>:’'\\\\\"]+")
+reAlpha = re.compile("[a-zA-Z\-_]")
+reNum = re.compile("[0-9]")
 NONSTOP_THRES = 100
 
-STEMMER = Stemmer.Stemmer('english')
+STEMMER = Stemmer.Stemmer('porter')
 
 # read stop word list from 'lewis_smart_sorted_uniq.txt'
 wordList = []
@@ -197,25 +199,6 @@ def recordArticle(pageDict):
 
    id = int(pageDict['id'])
 
-   # ** title filter **
-   if piped_re.match(title):
-       log.write('Filtered concept id='+str(id)+' ('+ title +') [regex]\n')
-       return
-
-   if reList.match(title):
-       log.write('Filtered concept id='+str(id)+' ('+ title +') [list]\n')
-       return
-   # ******
-
-   # ** inlink-outlink filter **
-   if not inlinkDict.has_key(id) or inlinkDict[id] < 5:
-        log.write('Filtered concept id='+str(id)+' ('+ title +') [minIncomingLinks]\n')
-	return
-
-   if not outlinkDict.has_key(id) or outlinkDict[id] < 5:
-        log.write('Filtered concept id='+str(id)+' ('+ title +') [minOutgoingLinks]\n')
-	return
-   # ******
 
    # ** stop category filter **
    cs = contentDict['categories']
@@ -225,6 +208,26 @@ def recordArticle(pageDict):
    # filter article with no category or belonging to stop categories
    if not cats or STOP_CATS.intersection(cats):
         log.write('Filtered concept id='+str(id)+' ('+ title +') [stop category]\n')
+	return
+   # ******
+
+   # ** title filter **
+   if piped_re.match(title):
+       log.write('Filtered concept id='+str(id)+' ('+ title +') [regex]\n')
+       return
+
+   '''if reList.match(title):
+       log.write('Filtered concept id='+str(id)+' ('+ title +') [list]\n')
+       return'''
+   # ******
+
+   # ** inlink-outlink filter **
+   if not inlinkDict.has_key(id) or inlinkDict[id] < 5:
+        log.write('Filtered concept id='+str(id)+' ('+ title +') [minIncomingLinks]\n')
+	return
+
+   if not outlinkDict.has_key(id) or outlinkDict[id] < 5:
+        log.write('Filtered concept id='+str(id)+' ('+ title +') [minOutgoingLinks]\n')
 	return
    # ******
 
@@ -239,23 +242,24 @@ def recordArticle(pageDict):
    ctext = t.text_content()
 
    # filter articles with fewer than 100 -UNIQUE- non-stop words
+   cmerged = ctitle + ' \n ' + ctext
 
    tokens = set()
-   wordCount = NONSTOP_THRES
-   for m in reToken.finditer(ctext):
+   wordCount = 0
+   for m in reToken.finditer(cmerged):
 	w = m.group()
-	if not w:
+	if not w or len(w) <= 2 or not reAlpha.search(w) or reNum.search(w):
 		continue
 	lword = w.lower()
 	if not lword in STOP_WORDS:
-		sword = STEMMER.stemWord(lword)
+		sword = STEMMER.stemWord(STEMMER.stemWord(STEMMER.stemWord(lword)))	# 3xPorter
 		if not sword in tokens:
-			wordCount -= 1
+			wordCount += 1
 			tokens.add(sword)
-			if wordCount == 0:
+			if wordCount == NONSTOP_THRES:
 				break
 
-   if wordCount > 0:
+   if wordCount < NONSTOP_THRES:
         log.write('Filtered concept id='+str(id)+' ('+ title +') [minNumFeaturesPerArticle]\n')
 	return
 
