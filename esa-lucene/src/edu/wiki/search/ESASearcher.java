@@ -25,6 +25,8 @@ import java.util.Map;
 
 import edu.wiki.api.concept.IConceptIterator;
 import edu.wiki.api.concept.IConceptVector;
+import edu.wiki.api.concept.scorer.CosineScorer;
+import edu.wiki.concept.ConceptVectorSimilarity;
 import edu.wiki.concept.TroveConceptVector;
 import edu.wiki.index.WikipediaAnalyzer;
 import edu.wiki.util.HeapSort;
@@ -70,6 +72,8 @@ public class ESASearcher {
 	
 	static float LINK_ALPHA = 0.5f;
 	
+	ConceptVectorSimilarity sim = new ConceptVectorSimilarity(new CosineScorer());
+	
 	public void initDB() throws ClassNotFoundException, SQLException, IOException {
 		// Load the JDBC driver 
 		String driverName = "com.mysql.jdbc.Driver"; // MySQL Connector 
@@ -105,6 +109,17 @@ public class ESASearcher {
 		maxConceptId = res.getInt(1) + 1;
   }
 	
+	private void clean(){
+		freqMap.clear();
+		tfidfMap.clear();
+		idfMap.clear();
+		termList.clear();
+		inlinkMap.clear();
+		
+		Arrays.fill(ids, 0);
+		Arrays.fill(values, 0);
+	}
+	
 	public ESASearcher() throws ClassNotFoundException, SQLException, IOException{
 		initDB();
 		analyzer = new WikipediaAnalyzer();
@@ -133,10 +148,7 @@ public class ESASearcher {
 		double vsum;
         TokenStream ts = analyzer.tokenStream("contents",new StringReader(query));
 
-		Arrays.fill( values, 0 );
-		freqMap.clear();
-		tfidfMap.clear();
-		termList.clear();
+        this.clean();
 
 		for( int i=0; i<ids.length; i++ ) {
 			ids[i] = i;
@@ -245,6 +257,8 @@ public class ESASearcher {
 	}
 	
 	private TIntIntHashMap setInlinkCounts(Collection<Integer> ids) throws SQLException{
+		inlinkMap.clear();
+		
 		String inPart = "(";
 		
 		for(int id: ids){
@@ -276,11 +290,11 @@ public class ESASearcher {
 	}
 	
 	
-	public IConceptVector getLinkVector(IConceptVector cv, int flimit) throws SQLException {
-		return getLinkVector(cv, true, LINK_ALPHA, flimit);
+	public IConceptVector getLinkVector(IConceptVector cv, int limit) throws SQLException {
+		return getLinkVector(cv, true, LINK_ALPHA, limit);
 	}
 	
-	public IConceptVector getLinkVector(IConceptVector cv, boolean moreGeneral, double ALPHA, int FLIMIT) throws SQLException {
+	public IConceptVector getLinkVector(IConceptVector cv, boolean moreGeneral, double ALPHA, int LIMIT) throws SQLException {
 		IConceptIterator it = cv.orderedIterator();
 		
 		int count = 0;
@@ -292,6 +306,9 @@ public class ESASearcher {
 		ArrayList<Integer> npages = new ArrayList<Integer>();
 		
 		HashMap<Integer, Float> secondMap = new HashMap<Integer, Float>(1000);
+		
+		
+		this.clean();
 				
 		// collect article objects
 		while(it.next()){
@@ -301,11 +318,13 @@ public class ESASearcher {
 		}
 		
 		// prepare inlink counts
-		inlinkMap.clear();
 		setInlinkCounts(pages);
 				
 		for(int pid : pages){			
 			Collection<Integer> raw_links = getLinks(pid);
+			if(raw_links.isEmpty()){
+				continue;
+			}
 			ArrayList<Integer> links = new ArrayList<Integer>(raw_links.size());
 			
 			final double inlink_factor_p = Math.log(inlinkMap.get(pid));
@@ -387,13 +406,47 @@ public class ESASearcher {
 
 		IConceptVector cv_link = new TroveConceptVector(maxConceptId);
 		
+		int c = 0;
 		for(int p : keys){
 			cv_link.set(p, secondMap.get(p));
+			c++;
+			if(c >= LIMIT){
+				break;
+			}
 		}
 		
 		
 		return cv_link;
 	}
 	
+	public IConceptVector getCombinedVector(String query) throws IOException, SQLException{
+		IConceptVector cvBase = getConceptVector(query);
+		IConceptVector cvNormal = getNormalVector(cvBase,10);
+		IConceptVector cvLink = getLinkVector(cvNormal,10);
+		
+		cvNormal.add(cvLink);
+		
+		return cvNormal;
+	}
+	
+	/**
+	 * Calculate semantic relatedness between documents
+	 * @param doc1
+	 * @param doc2
+	 * @return returns relatedness if successful, -1 otherwise
+	 */
+	public double getRelatedness(String doc1, String doc2){
+		try {
+			IConceptVector c1 = getCombinedVector(doc1);
+			IConceptVector c2 = getCombinedVector(doc2);
+			return sim.calcSimilarity(c1, c2);
+
+		}
+		catch(Exception e){
+			e.printStackTrace();
+			return -1;
+		}
+
+	}
 
 }

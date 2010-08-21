@@ -1,10 +1,11 @@
 package edu.wiki.modify;
 
 import java.io.BufferedReader;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -52,7 +53,7 @@ public class IndexPruner {
 		br.close();
 
 		// Create a connection to the database 
-		String url = "jdbc:mysql://" + serverName + "/" + mydatabase; // a JDBC url 
+		String url = "jdbc:mysql://" + serverName + "/" + mydatabase + "?useUnicode=yes&characterEncoding=UTF-8"; // a JDBC url 
 		connection = DriverManager.getConnection(url, username, password);
 		
 		pstmtTerm = connection.createStatement();
@@ -100,7 +101,9 @@ public class IndexPruner {
 	    int qcount = 0;
 	    float [] window = new float[WINDOW_SIZE];
 	    	    
-		FileWriter bw = new FileWriter("mod.txt");
+		// FileWriter bw = new FileWriter("mod.txt");
+	    FileOutputStream fos = new FileOutputStream("mod.txt");
+		OutputStreamWriter osw = new OutputStreamWriter(fos,"UTF-8");
 	    
 	    // read all terms
 	    ResultSet res = stmtLink.executeQuery(strAllTerms);
@@ -158,11 +161,11 @@ public class IndexPruner {
 	    		}
 	    		    		
 	    		if(mark < WINDOW_SIZE){
-	    			bw.write("'" +  term.replace("\\","\\\\").replace("'","\\'") + "'\t"+doc+"\t"+tfidf+"\n");
+	    			osw.write("'" +  term.replace("\\","\\\\").replace("'","\\'") + "'\t"+doc+"\t"+tfidf+"\n");
 	    			qcount++;	    			
 	    		}
 	    		else if( highest*WINDOW_THRES < (first - last) ){
-	    			bw.write("'" +  term.replace("\\","\\\\").replace("'","\\'") + "'\t"+doc+"\t"+tfidf+"\n");
+	    			osw.write("'" +  term.replace("\\","\\\\").replace("'","\\'") + "'\t"+doc+"\t"+tfidf+"\n");
 	    			if(windowMark < WINDOW_SIZE-1){
 	    				first = window[windowMark+1];
 	    			}
@@ -194,20 +197,24 @@ public class IndexPruner {
 
 	    	// write to DB
 	    	if(qcount > 100000){
-	    		bw.flush();
+	    		osw.flush();
 	    		stmtLink.execute(strLoadData);
 	    		qcount = 0;
-	    		bw = new FileWriter("mod.txt",false);
+	    		// bw = new FileWriter("mod.txt",false);
+	    		fos = new FileOutputStream("mod.txt",false);
+				osw = new OutputStreamWriter(fos,"UTF-8");
 	    	}
 
 	    }
 	    
 	    // write last part to DB
     	if(qcount > 0){
-    		bw.flush();
+    		osw.flush();
     		stmtLink.execute(strLoadData);
     		qcount = 0;
-    		bw = new FileWriter("mod.txt",false);
+    		// bw = new FileWriter("mod.txt",false);
+    		fos = new FileOutputStream("mod.txt",false);
+			osw = new OutputStreamWriter(fos,"UTF-8");
     	}
 
 	   
@@ -220,7 +227,7 @@ public class IndexPruner {
 	    
 	    connection.close();
 	    
-	    bw.close();
+	    osw.close();
 	    
 	}
 
