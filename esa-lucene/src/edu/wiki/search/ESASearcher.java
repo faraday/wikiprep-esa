@@ -136,6 +136,13 @@ public class ESASearcher {
 		super.finalize();
 	}
 	
+	/**
+	 * Retrieves full vector for regular features
+	 * @param query
+	 * @return Returns concept vector results exist, otherwise null 
+	 * @throws IOException
+	 * @throws SQLException
+	 */
 	public IConceptVector getConceptVector(String query) throws IOException, SQLException{
 		String strTerm;
 		int numTerms = 0;
@@ -209,6 +216,7 @@ public class ESASearcher {
         	tfidfMap.put(tk, vdouble / vsum);
         }
         
+        score = 0;
         for (String tk : termList) { 
         	            
             pstmtQuery.setBytes(1, tk.getBytes("UTF-8"));
@@ -221,6 +229,10 @@ public class ESASearcher {
           	  score = rs.getFloat(2);
           	  
           	  values[doc] += score * tfidfMap.get(tk);
+            }
+            
+            if(score == 0){
+            	return null;
             }
 
         }
@@ -243,8 +255,12 @@ public class ESASearcher {
 	 */
 	public IConceptVector getNormalVector(IConceptVector cv, int LIMIT){
 		IConceptVector cv_normal = new TroveConceptVector( LIMIT);
+		IConceptIterator it;
 		
-		IConceptIterator it = cv.orderedIterator();
+		if(cv == null)
+			return null;
+		
+		it = cv.orderedIterator();
 		
 		int count = 0;
 		while(it.next()){
@@ -291,11 +307,27 @@ public class ESASearcher {
 	
 	
 	public IConceptVector getLinkVector(IConceptVector cv, int limit) throws SQLException {
+		if(cv == null)
+			return null;
 		return getLinkVector(cv, true, LINK_ALPHA, limit);
 	}
 	
+	/**
+	 * Computes secondary interpretation vector of regular features
+	 * @param cv
+	 * @param moreGeneral
+	 * @param ALPHA
+	 * @param LIMIT
+	 * @return
+	 * @throws SQLException
+	 */
 	public IConceptVector getLinkVector(IConceptVector cv, boolean moreGeneral, double ALPHA, int LIMIT) throws SQLException {
-		IConceptIterator it = cv.orderedIterator();
+		IConceptIterator it;
+		
+		if(cv == null)
+			return null;
+		
+		it = cv.orderedIterator();
 		
 		int count = 0;
 		ArrayList<Integer> pages = new ArrayList<Integer>();
@@ -421,8 +453,14 @@ public class ESASearcher {
 	
 	public IConceptVector getCombinedVector(String query) throws IOException, SQLException{
 		IConceptVector cvBase = getConceptVector(query);
-		IConceptVector cvNormal = getNormalVector(cvBase,10);
-		IConceptVector cvLink = getLinkVector(cvNormal,10);
+		IConceptVector cvNormal, cvLink;
+		
+		if(cvBase == null){
+			return null;
+		}
+		
+		cvNormal = getNormalVector(cvBase,10);
+		cvLink = getLinkVector(cvNormal,5);
 		
 		cvNormal.add(cvLink);
 		
@@ -439,6 +477,11 @@ public class ESASearcher {
 		try {
 			IConceptVector c1 = getCombinedVector(doc1);
 			IConceptVector c2 = getCombinedVector(doc2);
+			
+			if(c1 == null || c2 == null){
+				return -1;
+			}
+			
 			return sim.calcSimilarity(c1, c2);
 
 		}
