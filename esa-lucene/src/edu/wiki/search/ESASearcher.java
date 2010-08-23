@@ -475,11 +475,13 @@ public class ESASearcher {
 	 */
 	public double getRelatedness(String doc1, String doc2){
 		try {
-			IConceptVector c1 = getCombinedVector(doc1);
-			IConceptVector c2 = getCombinedVector(doc2);
+			// IConceptVector c1 = getCombinedVector(doc1);
+			// IConceptVector c2 = getCombinedVector(doc2);
+			IConceptVector c1 = getNormalVector(getConceptVector(doc1),10);
+			IConceptVector c2 = getNormalVector(getConceptVector(doc2),10);
 			
 			if(c1 == null || c2 == null){
-				return -1;
+				return 0;
 			}
 			
 			return sim.calcSimilarity(c1, c2);
@@ -487,7 +489,7 @@ public class ESASearcher {
 		}
 		catch(Exception e){
 			e.printStackTrace();
-			return -1;
+			return 0;
 		}
 
 	}
