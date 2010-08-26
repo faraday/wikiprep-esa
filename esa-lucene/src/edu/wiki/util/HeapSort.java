@@ -46,6 +46,8 @@ public class HeapSort {
 	private static int largest;
 	/** A temporary double.*/
 	private static double tmpDouble;
+	/** A temporary float.*/
+	private static float tmpFloat;
 	/** A temporary int.*/
 	private static int tmpInt;
 	
@@ -54,6 +56,16 @@ public class HeapSort {
 	 * @param A int[] the array which will be transformed into a heap.
 	 */
 	private static void buildMaxHeap(double[] A, int[] B) {
+		heapSize = A.length;
+		for (int i = (int) Math.floor(heapSize / 2.0D); i > 0; i--)
+			maxHeapify(A, B, i);
+	}
+	
+	/**
+	 * Builds a maximum heap.
+	 * @param A int[] the array which will be transformed into a heap.
+	 */
+	private static void buildMaxHeap(float[] A, int[] B) {
 		heapSize = A.length;
 		for (int i = (int) Math.floor(heapSize / 2.0D); i > 0; i--)
 			maxHeapify(A, B, i);
@@ -116,6 +128,71 @@ public class HeapSort {
 			tmpDouble = A[largest - 1];
 			A[largest - 1] = A[i - 1];
 			A[i - 1] = tmpDouble;
+			tmpInt = B[largest - 1];
+			B[largest - 1] = B[i - 1];
+			B[i - 1] = tmpInt;
+			maxHeapify(A, B, largest);
+		}
+	}
+	
+	
+	/**
+	 * Sorts the given array using heap-sort in ascending order
+	 * @param A int[] the array to be sorted
+	 */
+	public static void heapSort(float[] A, int[] B) {
+		buildMaxHeap(A, B);
+		for (int i = A.length; i > 0; i--) {
+			tmpFloat = A[i - 1];
+			A[i - 1] = A[0];
+			A[0] = tmpFloat;
+			tmpInt = B[i - 1];
+			B[i - 1] = B[0];
+			B[0] = tmpInt;
+			heapSize--;
+			maxHeapify(A, B, 1);
+		}
+	}
+	/**
+	 * Sorts the top <tt>topElements</tt> of the given array in 
+	 * ascending order using heap sort.
+	 * @param A int[] the array to be sorted
+	 * @param topElements int the number of elements to be sorted.
+	 */
+	public static void heapSort(float[] A, int[] B, int topElements) {
+		buildMaxHeap(A, B);
+		final int end = A.length - topElements;
+		
+		for (int i = A.length; i > end; i--) {
+			tmpFloat = A[i - 1];
+			A[i - 1] = A[0];
+			A[0] = tmpFloat;
+			tmpInt = B[i - 1];
+			B[i - 1] = B[0];
+			B[0] = tmpInt;
+			heapSize--;
+			maxHeapify(A, B, 1);
+		}
+	}
+	/**
+	 * Maintains the heap property.
+	 * @param A int[] The array on which we operate.
+	 * @param i int a position in the array. This number is 
+	 * between 1 and A.length inclusive.
+	 */
+	private static void maxHeapify(float[] A, int[] B, int i) {
+		l = 2 * i;
+		r = 2 * i + 1;
+		if (l <= heapSize && A[l - 1] > A[i - 1])
+			largest = l;
+		else
+			largest = i;
+		if (r <= heapSize && A[r - 1] > A[largest - 1])
+			largest = r;
+		if (largest != i) {
+			tmpFloat = A[largest - 1];
+			A[largest - 1] = A[i - 1];
+			A[i - 1] = tmpFloat;
 			tmpInt = B[largest - 1];
 			B[largest - 1] = B[i - 1];
 			B[i - 1] = tmpInt;

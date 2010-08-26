@@ -1,6 +1,8 @@
 package edu.wiki.search;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -48,7 +50,7 @@ public class ESASearcher {
 	
 	WikipediaAnalyzer analyzer;
 	
-	String strTermQuery = "SELECT t.doc,t.tfidf FROM tfidf t WHERE t.term = ?";
+	String strTermQuery = "SELECT t.vector FROM idx t WHERE t.term = ?";
 	String strIdfQuery = "SELECT t.idf FROM terms t WHERE t.term = ?";
 	
 	String strMaxConcept = "SELECT MAX(id) FROM article";
@@ -73,7 +75,7 @@ public class ESASearcher {
 	static float LINK_ALPHA = 0.5f;
 	
 	ConceptVectorSimilarity sim = new ConceptVectorSimilarity(new CosineScorer());
-	
+		
 	public void initDB() throws ClassNotFoundException, SQLException, IOException {
 		// Load the JDBC driver 
 		String driverName = "com.mysql.jdbc.Driver"; // MySQL Connector 
@@ -93,7 +95,7 @@ public class ESASearcher {
 		connection = DriverManager.getConnection(url, username, password);
 		
 		pstmtQuery = connection.prepareStatement(strTermQuery);
-		pstmtQuery.setFetchSize(500);
+		pstmtQuery.setFetchSize(1);
 		
 		pstmtIdfQuery = connection.prepareStatement(strIdfQuery);
 		pstmtIdfQuery.setFetchSize(1);
@@ -148,11 +150,12 @@ public class ESASearcher {
 		int numTerms = 0;
 		ResultSet rs;
 		int doc;
-		float score;
+		double score;
 		int vint;
 		double vdouble;
 		double tf;
 		double vsum;
+		int plen;
         TokenStream ts = analyzer.tokenStream("contents",new StringReader(query));
 
         this.clean();
@@ -211,6 +214,8 @@ public class ESASearcher {
         }
         vsum = Math.sqrt(vsum);
         
+        
+        // comment this out for canceling query normalization
         for(String tk : idfMap.keySet()){
         	vdouble = tfidfMap.get(tk);
         	tfidfMap.put(tk, vdouble / vsum);
@@ -224,17 +229,31 @@ public class ESASearcher {
             
             rs = pstmtQuery.getResultSet();
             
-            while(rs.next()){
-          	  doc = rs.getInt(1);
-          	  score = rs.getFloat(2);
+            if(rs.next()){
+          	  final ByteArrayInputStream bais = new ByteArrayInputStream(rs.getBytes(1));
+          	  final DataInputStream dis = new DataInputStream(bais);
           	  
-          	  values[doc] += score * tfidfMap.get(tk);
-            }
-            
-            if(score == 0){
-            	return null;
+          	  /**
+          	   * 4 bytes: int - length of array
+          	   * 4 byte (doc) - 8 byte (tfidf) pairs
+          	   */
+          	  
+          	  plen = dis.readInt();
+          	  for(int k = 0;k<plen;k++){
+          		  doc = dis.readInt();
+          		  score = dis.readFloat();
+          		  values[doc] += score * tfidfMap.get(tk);
+          	  }
+          	  
+          	  bais.close();
+          	  dis.close();
             }
 
+        }
+        
+        // no result
+        if(score == 0){
+        	return null;
         }
         
         HeapSort.heapSort( values, ids );
@@ -477,8 +496,11 @@ public class ESASearcher {
 		try {
 			// IConceptVector c1 = getCombinedVector(doc1);
 			// IConceptVector c2 = getCombinedVector(doc2);
-			IConceptVector c1 = getNormalVector(getConceptVector(doc1),10);
-			IConceptVector c2 = getNormalVector(getConceptVector(doc2),10);
+			// IConceptVector c1 = getNormalVector(getConceptVector(doc1),10);
+			// IConceptVector c2 = getNormalVector(getConceptVector(doc2),10);
+			
+			IConceptVector c1 = getConceptVector(doc1);
+			IConceptVector c2 = getConceptVector(doc2);
 			
 			if(c1 == null || c2 == null){
 				return 0;
