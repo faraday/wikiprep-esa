@@ -163,8 +163,17 @@ public class ESAServlet extends HttpServlet {
 			
 			//process compare request
 			if (task.equals("vector")) {
-				String source = request.getParameter("source");
-				final int limit = Integer.valueOf(request.getParameter("limit"));
+				final String source = request.getParameter("source");				
+				final String strLimit = request.getParameter("limit"); 
+				
+				int limit;
+				
+				if(strLimit == null){
+					limit = 10;
+				}
+				else {
+					limit = Integer.valueOf(strLimit);
+				}
 				
 				if (source == null) {
 					response.setContentType("text/html");
@@ -181,7 +190,7 @@ public class ESAServlet extends HttpServlet {
 					}
 					
 					else {
-						final IConceptVector ncv = esa.getNormalVector(cv, 20);
+						final IConceptVector ncv = esa.getNormalVector(cv, limit);
 						final IConceptIterator it = ncv.orderedIterator();
 						
 						HashMap<Integer, Double> vals = new HashMap<Integer, Double>(10);
