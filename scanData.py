@@ -25,6 +25,17 @@ import signal
 import lxml.html as html
 import Stemmer
 
+# scanData.py <hgw_file> <RSIZE>
+args = sys.argv[1:]
+
+if len(args) < 1:
+    sys.exit()
+
+if len(args) == 2:
+    RSIZE = int(args[1])
+
+hgwpath = args[0]
+
 # formats: 1) Gabrilovich 2) Zemanta-legacy 3) Zemanta-modern
 FORMAT = 'Gabrilovich'
 
@@ -64,6 +75,33 @@ except:
 	sys.exit(1)
 
 STOP_CATS = frozenset(catList)
+
+
+# read disambig IDs for legacy format
+disambigList = []
+if FORMAT != 'Zemanta-modern':
+	disambigPath = hgwpath.replace('hgw.xml','disambig')
+	print disambigPath
+	try:
+		f = open(disambigPath, 'r')
+
+		for i in range(3):
+        		f.readline()
+
+		prevId = ''
+		for line in f.readlines():
+        		if prevId and line.startswith(prevId):
+	                	continue
+	        	id = line.split('\t',1)[0].strip()
+		        disambigList.append(int(id))
+        		prevId = id
+
+		f.close()
+	except:
+		print 'Disambig file cannot be read! Please check if a file with .disambig suffix exists in Wikiprep dump location'
+		sys.exit(1)
+
+DISAMBIG_IDS = frozenset(disambigList)
 
 try:
 	conn = MySQLdb.connect(host='localhost',user='root',passwd='123456',db='wiki',charset = "utf8", use_unicode = True)
@@ -175,10 +213,8 @@ log = open('log.txt','w')
 def recordArticle(pageDict):
    global articleBuffer, textBuffer, aBuflen, STEMMER
 
-   '''if FORMAT == 'Zemanta-modern' and (pageDict['stub'] == '1' or pageDict['disambig'] == '1' or pageDict['cat'] == '1' or pageDict['img'] == '1'):
+   if FORMAT == 'Zemanta-modern' and (pageDict['disambig'] == '1' or pageDict['cat'] == '1' or pageDict['img'] == '1'):
 	return
-   elif FORMAT != 'Zemanta-modern' pageDict['stub'] == '1':
-	return'''
 
    # a simple check for content
    if int(pageDict['len']) < 10:
@@ -198,6 +234,9 @@ def recordArticle(pageDict):
 
    id = int(pageDict['id'])
 
+   # skip disambig   
+   if FORMAT != 'Zemanta-modern' and id in DISAMBIG_IDS:
+	return
 
    # ** stop category filter **
    cs = contentDict['categories']
@@ -289,16 +328,7 @@ def recordArticle(pageDict):
    return
 
 
-args = sys.argv[1:]
-# scanData.py <hgw_file> <RSIZE>
-
-if len(args) < 1:
-    sys.exit()
-
-if len(args) == 2:
-    RSIZE = int(args[1])
-
-f = open(args[0],'r')
+f = open(hgwpath,'r')
 prevText = ''
 
 firstRead = f.read(10000)
