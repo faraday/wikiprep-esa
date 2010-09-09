@@ -1,20 +1,18 @@
 package edu.wiki.modify;
 
-import edu.wiki.util.HeapSort;
 import gnu.trove.TIntDoubleHashMap;
-import gnu.trove.TIntFloatHashMap;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -22,7 +20,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
@@ -42,7 +43,7 @@ import org.apache.lucene.store.FSDirectory;
  * @author Cagatay Calli <ccalli@gmail.com>
  *
  */
-public class IndexModifier {
+public class MemIndexModifier {
 			
 	static Connection connection = null;
 	static Statement stmtLink;
@@ -67,6 +68,34 @@ public class IndexModifier {
 	static float WINDOW_THRES= 0.005f;
 	
 	static DecimalFormat df = new DecimalFormat("#.########");
+	
+	static public class DocScore implements Comparable<DocScore> {
+		int doc;
+		float score;
+		
+		public DocScore(int doc, float score) {
+			this.doc = doc;
+			this.score = score;
+		}
+
+		@Override
+		public int compareTo(DocScore o) {
+			float val = (this.score - o.score);
+			if(val < 0){
+				return 1;	// descending
+			}
+			else if(val > 0){
+				return -1;
+			}
+			return 0;
+		}
+
+	}
+	
+	/**
+	 * global, term-doc matrix
+	 */
+	static HashMap<String, ArrayList<DocScore>> matrix;
 		
 	public static void initDB() throws ClassNotFoundException, SQLException, IOException {
 		// Load the JDBC driver 
@@ -74,7 +103,7 @@ public class IndexModifier {
 		Class.forName(driverName); 
 		
 		// read DB config
-		InputStream is = IndexModifier.class.getResourceAsStream("/config/db.conf");
+		InputStream is = MemIndexModifier.class.getResourceAsStream("/config/db.conf");
 		BufferedReader br = new BufferedReader(new InputStreamReader(is));
 		String serverName = br.readLine();
 		String mydatabase = br.readLine();
@@ -153,6 +182,7 @@ public class IndexModifier {
 	    
 	    Term t;
 	    
+	    int tcount;
 	    int tfreq = 0;
 	    float idf;
 	    float tf;
@@ -173,12 +203,11 @@ public class IndexModifier {
 
 	    HashMap<String, Integer> termHash = new HashMap<String, Integer>(500000);
 	    	    	    
-	    FileOutputStream fos = new FileOutputStream("vector.txt");
-		OutputStreamWriter osw = new OutputStreamWriter(fos,"UTF-8");
 	    
 	    tnum = reader.terms();
 	    
 	    hashInt = 0;
+	    tcount = 0;
 	    while(tnum.next()){
 	    	t = tnum.term();
 	    	term = t.text();
@@ -197,7 +226,10 @@ public class IndexModifier {
 	    	idfMap.put(term, idf);
 	    	termHash.put(term, hashInt++);
 	    	
+	    	tcount++;
 	    }
+	    
+	    matrix = new HashMap<String, ArrayList<DocScore>>(tcount);
 
 	    
 	    for(int i=0;i<maxid;i++){
@@ -250,7 +282,15 @@ public class IndexModifier {
 		    			// System.out.println(i + ": " + term + " " + fq[k] + " " + tfidf);
 		    			
 		    			// ++++ record to DB (term,doc,tfidf) +++++
-		    			osw.write(termHash.get(term) + "\t" + term + "\t" + wikiID + "\t" + df.format(tfidf) + "\n");
+		    			
+		    			if(matrix.containsKey(term)){
+		    				matrix.get(term).add(new DocScore(wikiID, tfidf));
+		    			}
+		    			else {
+		    				ArrayList<DocScore> dsl = new ArrayList<DocScore>();
+		    				dsl.add(new DocScore(wikiID, tfidf));
+		    				matrix.put(term, dsl);
+		    			}
 						
 		    		}
 	    		
@@ -263,59 +303,22 @@ public class IndexModifier {
 	    		
 	    	}
 	    }
-	    osw.close();
-	    fos.close();
-	    	    
-	    // sort tfidf entries according to terms
-	    String[] cmd = {"/bin/sh", "-c", "sort -S 1200M -n -t\\\t -k1 < vector.txt > vsorted.txt"};
-	    Process p1 = Runtime.getRuntime().exec(cmd);	
-	    try {
-			int exitV = p1.waitFor();
-			if(exitV != 0){
-				System.exit(1);
-			}
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-			System.exit(1);
-		}
 		
-		// delete unsorted doc-score file
-	    p1 = Runtime.getRuntime().exec("rm vector.txt");	
-	    try {
-			int exitV = p1.waitFor();
-			if(exitV != 0){
-				System.exit(1);
-			}
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-			System.exit(1);
-		}
-		
-		FileInputStream fis = new FileInputStream("vsorted.txt");
-		InputStreamReader isr = new InputStreamReader(fis,"UTF-8");
-		BufferedReader bir = new BufferedReader(isr);
-		
-		String line;
-		String prevTerm = null;
 		int doc;
 		float score;
-		TIntFloatHashMap hmap = new TIntFloatHashMap(100);
 		
 		// for pruning
 		int mark, windowMark;
 	    float first = 0, last = 0, highest = 0;
 	    float [] window = new float[WINDOW_SIZE];
 	    
-		while((line = bir.readLine()) != null){
-			final String [] parts = line.split("\t");
-			term = parts[1];
-			
-			// prune and write the vector
-			if(prevTerm != null && !prevTerm.equals(term)){
-				int [] arrDocs = hmap.keys();
-		    	float [] arrScores = hmap.getValues();
-		    	
-		    	HeapSort.heapSort(arrScores, arrDocs);
+	    for(String k : matrix.keySet()){
+	    	term = k;
+	    	List<DocScore> ds = matrix.get(k);
+	    	Collections.sort(ds);
+	    		    	
+	    	// prune and write the vector
+	    	{	
 		    	
 		    	// prune the vector
 		    	
@@ -326,9 +329,10 @@ public class IndexModifier {
 		    	ByteArrayOutputStream baos = new ByteArrayOutputStream(50000);
 		    	DataOutputStream tdos = new DataOutputStream(baos);
 		    	
-		    	for(int j=arrDocs.length-1;j>=0;j--){
-		    		score = arrScores[j];
-		    		
+		    	for(DocScore d : ds){
+		    		doc = d.doc;
+		    		score = d.score;
+		    				    		
 		    		// sliding window
 		    		
 		    		window[windowMark] = score;
@@ -339,11 +343,11 @@ public class IndexModifier {
 		    		}
 		    		    		
 		    		if(mark < WINDOW_SIZE){
-			    		tdos.writeInt(arrDocs[j]);
+			    		tdos.writeInt(doc);
 			    		tdos.writeFloat(score);
 		    		}
 		    		else if( highest*WINDOW_THRES < (first - last) ){
-		    			tdos.writeInt(arrDocs[j]);
+		    			tdos.writeInt(doc);
 			    		tdos.writeFloat(score);
 
 		    			if(windowMark < WINDOW_SIZE-1){
@@ -378,7 +382,7 @@ public class IndexModifier {
 		    	dbdis.close();
 		    			    			    		    		
 	    		// write to DB
-		    	pstmtVector.setString(1, prevTerm);
+		    	pstmtVector.setString(1, term);
 		    	pstmtVector.setBlob(2, new ByteArrayInputStream(dbvector.toByteArray()));
 		    	
 		    	pstmtVector.execute();
@@ -386,20 +390,9 @@ public class IndexModifier {
 		    	tdos.close();
 		    	baos.close();
 				
-				hmap.clear();
-			}
-			
-			doc = Integer.valueOf(parts[2]);
-			score = Float.valueOf(parts[3]);
-			
-			hmap.put(doc, score);
-			
-			prevTerm = term;
-		}
-		
-    	bir.close();
-		isr.close();
-		fis.close();
+	    	}
+	    		    	
+	    }
     	
     	// record term IDFs
     	FileOutputStream tos = new FileOutputStream("term.txt");
@@ -408,7 +401,6 @@ public class IndexModifier {
     	for(String tk : idfMap.keySet()){
 			tsw.write("'" +  tk.replace("\\","\\\\").replace("'","\\'") + "'\t"+idfMap.get(tk)+"\n");
 		}
-    	osw.close();
 		tsw.close();
 		stmtLink.execute(strTermLoadData);
 		stmtLink.execute("CREATE INDEX idx_term ON terms (term(32))");

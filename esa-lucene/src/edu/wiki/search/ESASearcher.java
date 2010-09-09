@@ -111,7 +111,7 @@ public class ESASearcher {
 		maxConceptId = res.getInt(1) + 1;
   }
 	
-	private void clean(){
+	public void clean(){
 		freqMap.clear();
 		tfidfMap.clear();
 		idfMap.clear();
@@ -157,6 +157,8 @@ public class ESASearcher {
 		double vsum;
 		int plen;
         TokenStream ts = analyzer.tokenStream("contents",new StringReader(query));
+        ByteArrayInputStream bais;
+        DataInputStream dis;
 
         this.clean();
 
@@ -230,8 +232,8 @@ public class ESASearcher {
             rs = pstmtQuery.getResultSet();
             
             if(rs.next()){
-          	  final ByteArrayInputStream bais = new ByteArrayInputStream(rs.getBytes(1));
-          	  final DataInputStream dis = new DataInputStream(bais);
+          	  bais = new ByteArrayInputStream(rs.getBytes(1));
+          	  dis = new DataInputStream(bais);
           	  
           	  /**
           	   * 4 bytes: int - length of array
@@ -239,6 +241,7 @@ public class ESASearcher {
           	   */
           	  
           	  plen = dis.readInt();
+          	  // System.out.println("vector len: " + plen);
           	  for(int k = 0;k<plen;k++){
           		  doc = dis.readInt();
           		  score = dis.readFloat();
@@ -503,10 +506,17 @@ public class ESASearcher {
 			IConceptVector c2 = getConceptVector(doc2);
 			
 			if(c1 == null || c2 == null){
-				return 0;
+				// return 0;
+				return -1;	// undefined
 			}
 			
-			return sim.calcSimilarity(c1, c2);
+			final double rel = sim.calcSimilarity(c1, c2);
+			
+			// mark for dealloc
+			c1 = null;
+			c2 = null;
+			
+			return rel;
 
 		}
 		catch(Exception e){

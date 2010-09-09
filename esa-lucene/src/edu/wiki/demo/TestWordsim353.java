@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.sql.SQLException;
+import java.text.DecimalFormat;
 
 import edu.wiki.modify.IndexModifier;
 import edu.wiki.search.ESASearcher;
@@ -21,6 +22,7 @@ public class TestWordsim353 {
 		ESASearcher searcher = new ESASearcher();
 		String line;
 		double val;
+		DecimalFormat df = new DecimalFormat("#.##########");
 		
 		// read Wordsim-353 human judgements
 		InputStream is = IndexModifier.class.getResourceAsStream("/config/wordsim353-combined.tab");
@@ -34,8 +36,12 @@ public class TestWordsim353 {
 			
 			val = searcher.getRelatedness(parts[0], parts[1]);
 			
-			System.out.println(line + "\t" + val);
-			
+			if(val == -1){
+				System.out.println(line + "\t0");
+			}
+			else {
+				System.out.println(line + "\t" + df.format(val));
+			}
 		}
 		br.close();
 		

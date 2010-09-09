@@ -1,7 +1,6 @@
 package edu.wiki.service;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -21,25 +20,14 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
 
-import org.apache.lucene.queryParser.QueryParser;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.TopDocs;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.FSDirectory;
 import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 
 import com.sun.org.apache.xerces.internal.dom.DocumentImpl;
 import com.sun.org.apache.xerces.internal.parsers.DOMParser;
 
 import edu.wiki.api.concept.IConceptIterator;
 import edu.wiki.api.concept.IConceptVector;
-import edu.wiki.index.WikipediaAnalyzer;
 import edu.wiki.search.ESASearcher;
 import edu.wiki.search.NormalizedWikipediaDistance;
 
@@ -54,7 +42,8 @@ public class ESAServlet extends HttpServlet {
 	
 	DOMParser parser = new DOMParser() ;
 	protected Document doc = new DocumentImpl();
-	protected DecimalFormat df = (DecimalFormat) NumberFormat.getInstance(Locale.US);
+	// protected DecimalFormat df = (DecimalFormat) NumberFormat.getInstance(Locale.US);
+	protected DecimalFormat df = new DecimalFormat("#.##########");
 	
 	
 	
@@ -136,7 +125,16 @@ public class ESAServlet extends HttpServlet {
 				else {
 					final double distance = nwd.getDistance(term1, term2);
 					response.setContentType("text/html");
-					response.getWriter().append(df.format(distance)) ;
+					
+					if(distance == 10000.0){
+						response.getWriter().append(String.valueOf(distance)) ;
+					}
+					else if(distance == -1){
+						response.getWriter().append(String.valueOf(distance)) ;
+					}
+					else {
+						response.getWriter().append(df.format(distance)) ;
+					}
 					return ;
 				}
 				
@@ -155,7 +153,13 @@ public class ESAServlet extends HttpServlet {
 				else {
 					final double sim = esa.getRelatedness(term1, term2);
 					response.setContentType("text/html");
-					response.getWriter().append(df.format(sim)) ;
+					if(sim == -1){
+						response.getWriter().append(String.valueOf(sim)) ;
+					}
+					else {
+						response.getWriter().append(df.format(sim)) ;
+					}
+					esa.clean();
 					return ;
 				}
 

@@ -30,7 +30,7 @@
 
     <context-param>
       <param-name>index_path</param-name>
-      <param-value>/home/cagatay/tmp/lucene-index/inka2</param-value>
+      <param-value></param-value>
     </context-param>
 
     <servlet>

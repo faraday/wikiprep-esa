@@ -96,6 +96,7 @@ public class NormalizedWikipediaDistance {
 		
 		if(f1 == 0 || f2 == 0){
 			return -1f;	// undefined
+			// return 10000.0f;	// no information, assume inf distance
 		}
 		
 		// if((fCommon == 0) && (f1 > 0 || f2 > 0) ){
