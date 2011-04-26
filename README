@@ -40,7 +40,7 @@ However, TF.IDF weighing scheme is the same (log-based) and is located in ESASim
 * IndexModifier: reads term frequency vectors from Lucene index and writes cosine-normalized TF.IDF values into
 "tfidf" table in the database. This is done to apply the same normalization method used in Gabrilovich et al. (2009).
 
-* IndexPruner: prunes concept vectors for each term with a sliding window.
+[DEPRECATED] * IndexPruner: prunes concept vectors for each term with a sliding window.
 By default, window_size = 100 and threshold = 0.05 as in Gabrilovich et al. (2009). You can modify these values
 in IndexPruner class.
 
@@ -82,9 +82,13 @@ python scanData.py <hgw.xml file from Wikiprep dump>
 python addAnchors.py <anchor_text file from Wikiprep dump> <a writeable folder>
 
 java -cp esa-lucene.jar edu.wiki.index.ESAWikipediaIndexer <Lucene index folder>
-java -cp esa-lucene.jar edu.wiki.modify.IndexModifier <Lucene index folder>
-java -cp esa-lucene.jar edu.wiki.modify.IndexPruner
 
+java -cp esa-lucene.jar edu.wiki.modify.IndexModifier <Lucene index folder>
+... or, if you have a sufficient RAM (15 Gb was enough to process en-20090618 dump) try this instead:
+java -cp esa-lucene.jar edu.wiki.modify.MemIndexModifier <Lucene index folder>
+
+IndexModifier sorts TF-IDF vectors using sort utility of Unix, also using the disk.
+MemIndexModifier handles sorting in memory instead.
 
 Then perform a feature generation to test:
 
