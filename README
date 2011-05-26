@@ -56,6 +56,9 @@ DEPENDENCIES
 Python scripts use MySQL-Python to access database.
 MySQL-Python: http://sourceforge.net/projects/mysql-python/
 
+Python scripts also use PyStemmer, which is the project encapsulating Python wrappers of Snowball:
+You can find further info at: http://snowball.tartarus.org/download.php
+
 "esa-lucene" Java project used for indexing, pruning etc. uses MySQL Connector/J to access database,
 Lucene 3.0 for indexing and Trove and these libraries are included in project files.
 
