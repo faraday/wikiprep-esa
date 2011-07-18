@@ -18,13 +18,49 @@ IMPORTANT: If you use XML output from a recent version of Wikiprep
 
 import sys
 import MySQLdb
+from optparse import OptionParser
+
+# Wikiprep dump format enum
+# formats: 1) Gabrilovich 2) Zemanta-legacy 3) Zemanta-modern
+F_GABRI = 0 # gabrilovich
+F_ZLEGACY = 1   # zemanta legacy
+F_ZMODERN = 2   # zemanta modern
+
+usage = """
+USAGE: addAnchors.py <anchor file from Wikiprep> <any writeable folder>' --format=<Wikiprep dump format>
+Wikiprep dump formats:
+1. Gabrilovich [gl, gabrilovich]
+2. Zemanta legacy [zl, legacy, zemanta-legacy]
+3. Zemanta modern [zm, modern, zemanta-modern]
+"""
+
+parser = OptionParser(usage=usage)
+parser.add_option("-f", "--format", dest="_format", help="Wikiprep dump format (g for Gabrilovich, zl for Zemanta-legacy,zm for Zemanta-modern)", metavar="FORMAT")
+(options, args) = parser.parse_args()
+if len(args) != 2:
+	print usage
+	sys.exit()
+if not options._format:
+        print """
+Wikiprep dump format not specified! Please select one from below with --format option:
+
+Wikiprep dump formats:
+1. Gabrilovich [gl, gabrilovich]
+2. Zemanta legacy [zl, legacy, zemanta-legacy]
+3. Zemanta modern [zm, modern, zemanta-modern]
+"""
+        sys.exit()
+
+if options._format in ['zm','zemanta-modern','Zemanta-modern','Zemanta-Modern','modern']:
+        FORMAT = F_ZMODERN
+elif options._format in ['gl','gabrilovich','Gabrilovich']:
+        FORMAT = F_GABRI
+elif options._format in ['zl','zemanta-legacy','Zemanta-legacy','Zemanta-Legacy','legacy']:
+        FORMAT = F_ZLEGACY
 
 PARTITION_SIZE = 100000
 
-# formats: 1) Gabrilovich 2) Zemanta-legacy 3) Zemanta-modern
-FORMAT = 'Gabrilovich'
-
-if FORMAT == 'Gabrilovich':
+if FORMAT == F_GABRI:
 	FIELD_POS = 2
 else:
 	FIELD_POS = 3

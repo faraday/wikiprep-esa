@@ -10,10 +10,20 @@ TABLE: article   	COLUMNS: id INT, title VARBINARY(255)
 TABLE: text 	 	COLUMNS: old_id INT, old_text MEDIUMBLOB
 TABLE: pagelinks	COLUMNS: source_id INT, target_id INT
 
-USAGE: scanData.py <hgw.xml file from Wikiprep>
+USAGE: scanData.py <hgw.xml/gum.xml file from Wikiprep> --format=<Wikiprep dump format> [--stopcats=<stop category file>]
 
 IMPORTANT: If you use XML output from a recent version of Wikiprep
 (e.g. Zemanta fork), then set FORMAT to 'Zemanta-legacy' or 'Zemanta-modern'.
+
+
+ABOUT STOP CATEGORY FILTERING:
+Stop category filtering is not active in default configuration. You can change
+ provide an updated list of stop categories, derived from your Wikipedia dump 
+with --stopcats option.
+e.g. scanData.py sample.gum.xml --stopcats=sampleCategoryList.txt 
+
+Cleaning up irrelevant articles is important in ESA so providing such a file 
+is recommended.
 
 '''
 
@@ -21,25 +31,67 @@ import sys
 import re
 import MySQLdb
 import signal
+from optparse import OptionParser
 
 import lxml.html as html
 import Stemmer
 
-# scanData.py <hgw_file> <RSIZE>
-args = sys.argv[1:]
+import xmlwikiprep
 
-if len(args) < 1:
-    sys.exit()
-
-if len(args) == 2:
-    RSIZE = int(args[1])
-
-hgwpath = args[0]
-
+# Wikiprep dump format enum
 # formats: 1) Gabrilovich 2) Zemanta-legacy 3) Zemanta-modern
-FORMAT = 'Gabrilovich'
+F_GABRI = 0 # gabrilovich
+F_ZLEGACY = 1	# zemanta legacy
+F_ZMODERN = 2	# zemanta modern
+
+usage = """
+USAGE: scanData.py <hgw.xml/gum.xml file from Wikiprep> --format=<Wikiprep dump format> [--stopcats=<stop category file>]
+
+Wikiprep dump formats:
+1. Gabrilovich [gl, gabrilovich]
+2. Zemanta legacy [zl, legacy, zemanta-legacy]
+3. Zemanta modern [zm, modern, zemanta-modern]
+
+'2005_wiki_stop_categories.txt' can be used for 2005 dump of Gabrilovich et al.
+"""
+parser = OptionParser(usage=usage)
+parser.add_option("-s", "--stopcats", dest="stopcats", help="Path to stop categories file", metavar="STOPCATS")
+parser.add_option("-f", "--format", dest="_format", help="Wikiprep dump format (g for Gabrilovich, zl for Zemanta-legacy,zm for Zemanta-modern)", metavar="FORMAT")
+
+
+(options, args) = parser.parse_args()
+if not args:
+	print usage
+	sys.exit()
+if not options.stopcats:
+        print 'Stop category list is not provided. (You can provide this with --stopcats argument.)'
+	print 'Continuing without stop category filter...'
+
+if not options._format:
+	print """
+Wikiprep dump format not specified! Please select one from below with --format option:
+
+Wikiprep dump formats:
+1. Gabrilovich [gl, gabrilovich]
+2. Zemanta legacy [zl, legacy, zemanta-legacy]
+3. Zemanta modern [zm, modern, zemanta-modern]
+"""
+	sys.exit()
+
+if options._format in ['zm','zemanta-modern','Zemanta-modern','Zemanta-Modern','modern']:
+	FORMAT = F_ZMODERN
+elif options._format in ['gl','gabrilovich','Gabrilovich']:
+	FORMAT = F_GABRI
+elif options._format in ['zl','zemanta-legacy','Zemanta-legacy','Zemanta-Legacy','legacy']:
+	FORMAT = F_ZLEGACY	
+
+
+# scanData.py <hgw_file> [--stopcats=<stop category file>]
+
+hgwpath = args[0] # hgw/gum.xml
 
 TITLE_WEIGHT = 4
+STOP_CATEGORY_FILTER = bool(options.stopcats)
 
 # reToken = re.compile('[a-zA-Z\-]+')
 reToken = re.compile("[^ \t\n\r`~!@#$%^&*()_=+|\[;\]\{\},./?<>:’'\\\\\"]+")
@@ -61,25 +113,27 @@ except:
 
 STOP_WORDS = frozenset(wordList)
 
-# read list of stop categories from 'extended_stop_categories.txt'
-catList = []
-try:
-	f = open('wiki_stop_categories.txt','r')
-	for line in f.readlines():
-		strId = line.split('\t')[0]
-		if strId:
-			catList.append(int(strId))
-	f.close()
-except:
-	print 'Stop categories cannot be read! Please put "extended_stop_categories.txt" file containing stop categories in this folder.'
-	sys.exit(1)
 
-STOP_CATS = frozenset(catList)
+if STOP_CATEGORY_FILTER:
+	# read list of stop categories from 'extended_stop_categories.txt'
+	catList = []
+	try:
+		f = open(options.stopcats,'r')
+		for line in f.readlines():
+			strId = line.split('\t')[0]
+			if strId:
+				catList.append(int(strId))
+		f.close()
+	except:
+		print 'Stop categories cannot be read!'
+		sys.exit(1)
+
+	STOP_CATS = frozenset(catList)
 
 
 # read disambig IDs for legacy format
 disambigList = []
-if FORMAT != 'Zemanta-modern':
+if FORMAT != F_ZMODERN:
 	disambigPath = hgwpath.replace('hgw.xml','disambig')
 	print disambigPath
 	try:
@@ -147,18 +201,7 @@ def signalHandler(signum, frame):
 signal.signal(signal.SIGTERM, signalHandler)
 #####
 
-rePageLegacy = re.compile('<page id="(?P<id>\d+)".+?newlength="(?P<len>\d+)" stub="(?P<stub>\d)".+?>(?P<page>.+?)</page>',re.MULTILINE | re.DOTALL)
-
-rePageModern = re.compile('<page id="(?P<id>\d+)".+?newlength="(?P<len>\d+)" stub="(?P<stub>\d)" disambig="(?P<disambig>\d)" category="(?P<cat>\d)" image="(?P<img>\d)">(?P<page>.+?)</page>',re.MULTILINE | re.DOTALL)
-
-reContent = re.compile('<title>(?P<title>.+?)</title>\n<categories>(?P<categories>.*?)</categories>.+?<text>(?P<text>.+?)</text>',re.MULTILINE | re.DOTALL)
-
 reOtherNamespace = re.compile("^(User|Wikipedia|File|MediaWiki|Template|Help|Category|Portal|Book|Talk|Special|Media|WP|User talk|Wikipedia talk|File talk|MediaWiki talk|Template talk|Help talk|Category talk|Portal talk):.+",re.DOTALL)
-
-if FORMAT == 'Zemanta-modern':
-	rePage = rePageModern
-else:
-	rePage = rePageLegacy
 
 # category, disambig, stub pages are removed by flags
 
@@ -180,8 +223,6 @@ piped_re = re.compile( "|".join( re_strings ) , re.DOTALL|re.IGNORECASE)
 # list filter
 reList = re.compile('^List of .+',re.DOTALL|re.IGNORECASE)
 
-
-RSIZE = 10000000	# read chunk size = 10 MB
 
 ###
 articleBuffer = []	# len: 100  / now: 200
@@ -210,48 +251,40 @@ log = open('log.txt','w')
 
 # pageContent - <page>..content..</page>
 # pageDict - stores page attribute dict
-def recordArticle(pageDict):
+def recordArticle(pageDoc):
    global articleBuffer, textBuffer, aBuflen, STEMMER
 
-   if FORMAT == 'Zemanta-modern' and (pageDict['disambig'] == '1' or pageDict['cat'] == '1' or pageDict['img'] == '1'):
+   if FORMAT == F_ZMODERN and (pageDoc['disambig'] or pageDoc['category'] or pageDoc['image']):
 	return
 
    # a simple check for content
-   if int(pageDict['len']) < 10:
+   if pageDoc['length'] < 10:
 	return
 
-   mContent = reContent.search(pageDict['page'])
-   if not mContent:
-	return
-
-   contentDict = mContent.groupdict()
-
-   title = contentDict['title']
+   title = pageDoc['title']
+   _id = pageDoc['_id']
 
    # only keep articles of Main namespace
    if reOtherNamespace.match(title):
         return
 
-   id = int(pageDict['id'])
-
    # skip disambig   
-   if FORMAT != 'Zemanta-modern' and id in DISAMBIG_IDS:
+   if FORMAT != F_ZMODERN and _id in DISAMBIG_IDS:
 	return
 
    # ** stop category filter **
-   cs = contentDict['categories']
-   cs = cs.split()
-   cats = frozenset([int(c) for c in cs if c])
+   if STOP_CATEGORY_FILTER:
+   	cats = frozenset(pageDoc['categories'])
 
-   # filter article with no category or belonging to stop categories
-   if not cats or STOP_CATS.intersection(cats):
-        log.write('Filtered concept id='+str(id)+' ('+ title +') [stop category]\n')
-	return
+   	# filter article with no category or belonging to stop categories
+   	if not cats or STOP_CATS.intersection(cats):
+        	log.write('Filtered concept id='+str(_id)+' ('+ title +') [stop category]\n')
+		return
    # ******
 
    # ** title filter **
    if piped_re.match(title):
-       log.write('Filtered concept id='+str(id)+' ('+ title +') [regex]\n')
+       log.write('Filtered concept id='+str(_id)+' ('+ title +') [regex]\n')
        return
 
    '''if reList.match(title):
@@ -260,23 +293,23 @@ def recordArticle(pageDict):
    # ******
 
    # ** inlink-outlink filter **
-   if not inlinkDict.has_key(id) or inlinkDict[id] < 5:
-        log.write('Filtered concept id='+str(id)+' ('+ title +') [minIncomingLinks]\n')
+   if not inlinkDict.has_key(_id) or inlinkDict[_id] < 5:
+        log.write('Filtered concept id='+str(_id)+' ('+ title.encode('utf8') +') [minIncomingLinks]\n')
 	return
 
-   if not outlinkDict.has_key(id) or outlinkDict[id] < 5:
-        log.write('Filtered concept id='+str(id)+' ('+ title +') [minOutgoingLinks]\n')
+   if not outlinkDict.has_key(_id) or outlinkDict[_id] < 5:
+        log.write('Filtered concept id='+str(_id)+' ('+ title.encode('utf8') +') [minOutgoingLinks]\n')
 	return
    # ******
 
-   text = contentDict['text']
+   text = pageDoc['text']
 
    # convert HTML to plain text
-   t = html.fromstring(title.decode("utf-8"))
+   t = html.fromstring(title)
    ctitle = t.text_content()
 
    ctext = '' 
-   t = html.fromstring(text.decode("utf-8"))
+   t = html.fromstring(text)
    ctext = t.text_content()
 
    # filter articles with fewer than 100 -UNIQUE- non-stop words
@@ -298,7 +331,7 @@ def recordArticle(pageDict):
 				break
 
    if wordCount < NONSTOP_THRES:
-        log.write('Filtered concept id='+str(id)+' ('+ title +') [minNumFeaturesPerArticle]\n')
+        log.write('Filtered concept id='+str(_id)+' ('+ title.encode('utf8') +') [minNumFeaturesPerArticle]\n')
 	return
 
 
@@ -308,8 +341,8 @@ def recordArticle(pageDict):
    cadd += ctext
 
    # write article info (id,title,text)
-   articleBuffer.append((id,ctitle))
-   textBuffer.append((id,cadd))
+   articleBuffer.append((_id,ctitle.encode('utf8')))
+   textBuffer.append((_id,cadd.encode('utf8')))
    aBuflen += 1
 
    if aBuflen >= 200:
@@ -329,33 +362,8 @@ def recordArticle(pageDict):
 
 
 f = open(hgwpath,'r')
-prevText = ''
-
-firstRead = f.read(10000)
-
-if FORMAT == 'Gabrilovich':
-	documentStart = firstRead.find('</siteinfo>') + len('</siteinfo>')
-else:
-	documentStart = firstRead.find('<gum>') + len('<gum>')
-
-prevText = firstRead[documentStart:10000]
-
-while True:
-
-    newText = f.read(RSIZE)
-    if not newText:
-        break
-    
-    text = prevText + newText
-
-    endIndex = -1
-    
-    for page in rePage.finditer(text):
-        recordArticle(page.groupdict())
-	endIndex = page.end()
-
-    prevText = text[endIndex:]
-
+for doc in xmlwikiprep.read(f):
+	recordArticle(doc)
 f.close()
 
 if aBuflen > 0:

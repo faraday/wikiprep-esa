@@ -20,10 +20,13 @@ Evgeniy Gabrilovich provides a preprocessed dump for 5 November 2005 snapshot of
 
 It is available at: http://www.cs.technion.ac.il/~gabr/resources/code/wikiprep/wikipedia-051105-preprocessed.tar.bz2
 
-In its current settings, Python scripts of wikiprep-esa are ready to process this dump.
-If you need to process dumps in formats of Zemanta, you need to set FORMAT in these scripts.
+In its current settings, Python scripts of wikiprep-esa are ready to process this dump with --format=gabrilovich or --format=gl setting.
+If you need to process dumps in formats of Zemanta, you need to set format with --format argument, e.g. --format=zemanta-modern , --format=zm , --format=modern.
 
-FORMAT can be following: "Gabrilovich", "Zemanta-legacy", "Zemanta-modern"
+Wikiprep dump Format can be following:
+1. Gabrilovich [gl, gabrilovich]
+2. Zemanta legacy [zl, legacy, zemanta-legacy]
+3. Zemanta modern [zm, modern, zemanta-modern]
 
 After reading preprocessed dump into the database and adding anchors and redirects, you need to use
 "esa-lucene" to perform indexing.
@@ -71,18 +74,26 @@ USAGE
 
 This creates the pagelinks table and records incoming and outgoing link counts.
 
-python scanLinks.py <hgw.xml file from Wikiprep dump>
+[STANDARD] python scanLinks.py <hgw.xml file from Wikiprep dump>
 
-As stop categories, a list "wiki_stop_categories.txt" is provided.
-But if you want to descend down and include all subtrees of these categories, you can use:
-
-python scanCatHier.py <hgw.xml file from Wikiprep dump> <cat_hier output path>
+(e.g. python scanLinks.py simplewiki/simplewiki-20110620-pages-articles.gum.xml )
 
 
-[The commands below are standard]
+You can provide a list of stop categories for your Wikipedia dump, to help filter irrelevant articles.
+A list for 2005 dump of Gabrilovich et al. is provided in "2005_wiki_stop_categories.txt".
+Note that you should prepare your own, updated file for your Wikipedia dump, if you are going to use stop category filtering.
 
-python scanData.py <hgw.xml file from Wikiprep dump>
-python addAnchors.py <anchor_text file from Wikiprep dump> <a writeable folder>
+If you want to descend down and include all subtrees of these categories, you can use:
+
+[OPTIONAL] python scanCatHier.py <hgw.xml/gum.xml file from Wikiprep> <output file path> --stopcats=<stop category file>
+
+[The commands below are all STANDARD]
+
+python scanData.py <hgw.xml/gum.xml file from Wikiprep dump> --format=<Wikiprep dump format> [--stopcats=<stop category file>]
+(e.g. python scanData.py simplewiki/simplewiki-20110620-pages-articles.gum.xml --format=zm )
+
+python addAnchors.py <anchor_text file from Wikiprep dump> <a writeable folder>' --format=<Wikiprep dump format>
+(e.g. python addAnchors.py simplewiki/simplewiki-20110620-pages-articles.anchor_text anchor --format=zm)
 
 java -cp esa-lucene.jar edu.wiki.index.ESAWikipediaIndexer <Lucene index folder>
 

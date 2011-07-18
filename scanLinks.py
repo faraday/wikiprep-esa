@@ -5,9 +5,10 @@ Copyright (C) 2010  Cagatay Calli <ccalli@gmail.com>
 
 Scans XML output (gum.xml) from Wikiprep, creates 3 tables:
 
-TABLE: article   	COLUMNS: id INT, title VARBINARY(255)
-TABLE: text 	 	COLUMNS: old_id INT, old_text MEDIUMBLOB
 TABLE: pagelinks	COLUMNS: source_id INT, target_id INT
+TABLE: inlinks		COLUMNS: target_id INT, inlink INT
+TABLE: outlinks		COLUMNS: source_id INT, outlink INT
+TABLE: namespace	COLUMNS: id INT
 
 USAGE: scanData.py <hgw.xml file from Wikiprep>
 
@@ -20,11 +21,9 @@ import sys
 import re
 import MySQLdb
 import signal
+import xmlwikiprep
 
-LINK_LOAD_THRES = 100000
-
-# formats: 1) Gabrilovich 2) Zemanta-legacy 3) Zemanta-modern
-FORMAT = 'Gabrilovich'
+LINK_LOAD_THRES = 10000
 
 try:
 	conn = MySQLdb.connect(host='localhost',user='root',passwd='123456',db='wiki',charset = "utf8", use_unicode = True)
@@ -70,20 +69,7 @@ def signalHandler(signum, frame):
 signal.signal(signal.SIGTERM, signalHandler)
 #####
 
-rePageLegacy = re.compile('<page id="(?P<id>\d+)".+?newlength="(?P<len>\d+)".+?>(?P<page>.+?)</page>',re.MULTILINE | re.DOTALL)
-
-rePageModern = re.compile('<page id="(?P<id>\d+)".+?newlength="(?P<len>\d+)".+?>(?P<page>.+?)</page>',re.MULTILINE | re.DOTALL)
-
-reContent = re.compile('<title>(?P<title>.+?)</title>.+?<links>(?P<links>.*?)</links>',re.MULTILINE | re.DOTALL)
-
 reOtherNamespace = re.compile("^(User|Wikipedia|File|MediaWiki|Template|Help|Category|Portal|Book|Talk|Special|Media|WP|User talk|Wikipedia talk|File talk|MediaWiki talk|Template talk|Help talk|Category talk|Portal talk):.+",re.DOTALL)
-
-if FORMAT == 'Zemanta-modern':
-	rePage = rePageModern
-else:
-	rePage = rePageLegacy
-
-RSIZE = 10000000	# read chunk size = 10 MB
 
 linkBuffer = []
 linkBuflen = 0
@@ -95,30 +81,23 @@ mainNS = []
 
 # pageContent - <page>..content..</page>
 # pageDict - stores page attribute dict
-def recordArticle(pageDict):
+def recordArticle(pageDoc):
    global linkBuffer, linkBuflen, nsBuffer, nsBuflen
 
    # a simple check for content
-   if int(pageDict['len']) < 10:
+   if pageDoc['length'] < 10:
 	return
 
-   mContent = reContent.search(pageDict['page'])
-   if not mContent:
-	return
-
-   contentDict = mContent.groupdict()
-
-   id = int(pageDict['id'])
-   title = contentDict['title']
+   _id = pageDoc['_id']
 
    # only keep articles of Main namespace
-   if reOtherNamespace.match(title):
+   if reOtherNamespace.match(pageDoc['title']):
         return
 
-   nsBuffer.append((id))
+   nsBuffer.append((_id))
    nsBuflen += 1
 
-   if linkBuflen >= 10000:
+   if linkBuflen >= LINK_LOAD_THRES:
    	cursor.executemany("""
 		INSERT INTO namespace (id)
                 VALUES (%s)
@@ -128,15 +107,12 @@ def recordArticle(pageDict):
         nsBuflen = 0
 
 
-   ls = contentDict['links']
-   ls = ls.split()
-
    # write links
-   for l in ls:
-        linkBuffer.append((id,l)) # source, target
+   for l in pageDoc['links']:
+        linkBuffer.append((_id,l)) # source, target
         linkBuflen += 1
 
-        if linkBuflen >= 10000:
+        if linkBuflen >= LINK_LOAD_THRES:
                 cursor.executemany("""
                         INSERT INTO pagelinks (source_id,target_id)
                         VALUES (%s,%s)
@@ -149,42 +125,14 @@ def recordArticle(pageDict):
 
 
 args = sys.argv[1:]
-# scanData.py <hgw_file> <RSIZE>
+# scanData.py <hgw_file>
 
 if len(args) < 1:
     sys.exit()
 
-if len(args) == 2:
-    RSIZE = int(args[1])
-
 f = open(args[0],'r')
-prevText = ''
-
-firstRead = f.read(10000)
-
-if FORMAT == 'Gabrilovich':
-	documentStart = firstRead.find('</siteinfo>') + len('</siteinfo>')
-else:
-	documentStart = firstRead.find('<gum>') + len('<gum>')
-
-prevText = firstRead[documentStart:10000]
-
-while True:
-
-    newText = f.read(RSIZE)
-    if not newText:
-        break
-    
-    text = prevText + newText
-
-    endIndex = -1
-    
-    for page in rePage.finditer(text):
-        recordArticle(page.groupdict())
-	endIndex = page.end()
-
-    prevText = text[endIndex:]
-
+for doc in xmlwikiprep.read(f):
+	recordArticle(doc)
 f.close()
 
 if nsBuflen > 0:
