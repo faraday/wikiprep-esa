@@ -97,7 +97,7 @@ def recordArticle(pageDoc):
    nsBuffer.append((_id))
    nsBuflen += 1
 
-   if linkBuflen >= LINK_LOAD_THRES:
+   if nsBuflen >= LINK_LOAD_THRES:
    	cursor.executemany("""
 		INSERT INTO namespace (id)
                 VALUES (%s)
