@@ -32,8 +32,8 @@ import edu.wiki.concept.ConceptVectorSimilarity;
 import edu.wiki.concept.TroveConceptVector;
 import edu.wiki.index.WikipediaAnalyzer;
 import edu.wiki.util.HeapSort;
-import gnu.trove.TIntFloatHashMap;
-import gnu.trove.TIntIntHashMap;
+import gnu.trove.map.hash.TIntFloatHashMap;
+import gnu.trove.map.hash.TIntIntHashMap;
 
 /**
  * Performs search on the index located in database.

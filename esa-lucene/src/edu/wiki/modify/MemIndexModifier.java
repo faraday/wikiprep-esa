@@ -1,6 +1,6 @@
 package edu.wiki.modify;
 
-import gnu.trove.TIntDoubleHashMap;
+import gnu.trove.map.hash.TIntDoubleHashMap;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;

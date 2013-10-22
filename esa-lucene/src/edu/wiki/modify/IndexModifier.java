@@ -1,8 +1,8 @@
 package edu.wiki.modify;
 
 import edu.wiki.util.HeapSort;
-import gnu.trove.TIntDoubleHashMap;
-import gnu.trove.TIntFloatHashMap;
+import gnu.trove.map.hash.TIntDoubleHashMap;
+import gnu.trove.map.hash.TIntFloatHashMap;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -313,7 +313,7 @@ public class IndexModifier {
 			// prune and write the vector
 			if(prevTerm != null && !prevTerm.equals(term)){
 				int [] arrDocs = hmap.keys();
-		    	float [] arrScores = hmap.getValues();
+		    	float [] arrScores = hmap.values();
 		    	
 		    	HeapSort.heapSort(arrScores, arrDocs);
 		    	

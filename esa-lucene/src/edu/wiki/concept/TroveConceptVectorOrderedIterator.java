@@ -3,7 +3,7 @@ package edu.wiki.concept;
 
 import edu.wiki.api.concept.IConceptIterator;
 import edu.wiki.util.HeapSort;
-import gnu.trove.TIntDoubleHashMap;
+import gnu.trove.map.hash.TIntDoubleHashMap;
 
 
 public class TroveConceptVectorOrderedIterator implements IConceptIterator {
@@ -15,7 +15,7 @@ public class TroveConceptVectorOrderedIterator implements IConceptIterator {
 	
 	public TroveConceptVectorOrderedIterator( TIntDoubleHashMap valueMap ) {
 		index = valueMap.keys();
-		values = valueMap.getValues();
+		values = valueMap.values();
 		HeapSort.heapSort( values, index );
 		reset();
 	}

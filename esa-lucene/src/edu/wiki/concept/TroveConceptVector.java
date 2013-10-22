@@ -3,9 +3,9 @@ package edu.wiki.concept;
 import edu.wiki.api.concept.IConceptIterator;
 import edu.wiki.api.concept.IConceptVector;
 import edu.wiki.api.concept.IConceptVectorData;
-import gnu.trove.TDoubleProcedure;
-import gnu.trove.TIntDoubleHashMap;
-import gnu.trove.TIntDoubleIterator;
+import gnu.trove.procedure.TDoubleProcedure;
+import gnu.trove.map.hash.TIntDoubleHashMap;
+import gnu.trove.iterator.TIntDoubleIterator;
 
 import java.io.Serializable;
 
