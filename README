@@ -1,5 +1,10 @@
 Wikiprep-ESA
 
+ARCHIVED: This repository preserves a historical replication effort of
+Explicit Semantic Analysis (ESA). It is no longer maintained and relies on
+legacy dependencies, including Python 2.x. Running it may require recreating
+the original development environment with library versions from before 2013.
+
 This is an effort to implement Explicit Semantic Analysis (ESA) as described in this paper:
 
 "Wikipedia-based semantic interpretation for natural language processing"
